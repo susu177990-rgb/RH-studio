@@ -6,7 +6,7 @@
 <title>生成记录 · RH Studio</title>
 <meta name="description" content="RH Studio generation history" />
 <link rel="stylesheet" href="./style.css">
-<link rel="stylesheet" href="./history.css">
+<link rel="stylesheet" href="./history.css?v=batch-archive-1">
 </head>
 <body class="history-page-body">
 <div class="ambient ambient-a"></div>
@@ -25,6 +25,12 @@
     </div>
 
     <div class="history-actions">
+      <button id="downloadLatestBatch" class="history-action-btn history-archive-btn" type="button" disabled>
+        最近批量打包 <b>↓</b>
+      </button>
+      <button id="downloadAllHistory" class="history-action-btn history-archive-btn" type="button" disabled>
+        全部记录打包 <b>↓</b>
+      </button>
       <button id="importHistoryTask" class="history-action-btn" type="button">导入 Task</button>
       <a class="history-back" href="/">返回工作台 <b>↙</b></a>
     </div>
@@ -41,6 +47,6 @@
 </div>
 
 <div id="toast" class="toast"></div>
-<script src="./history.js"></script>
+<script src="./history.js?v=batch-archive-1"></script>
 </body>
 </html>
