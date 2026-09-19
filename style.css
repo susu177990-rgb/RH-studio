@@ -127,9 +127,9 @@ button{color:inherit}
 .loading-mark:after{content:"";width:21px;height:21px;border:2px solid rgba(255,179,92,.18);border-top-color:var(--accent);border-radius:50%;animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .error-state .empty-mark{color:var(--bad);border-color:rgba(239,136,126,.18);background:rgba(239,136,126,.05)}
-.download-btn{position:absolute;right:14px;bottom:14px;z-index:4;height:38px;min-width:82px;border:1px solid rgba(255,179,92,.25);border-radius:12px;background:rgba(13,11,9,.78);backdrop-filter:blur(16px);color:#d6b083;display:flex;align-items:center;justify-content:center;gap:10px;padding:0 12px;cursor:pointer;font-size:8px;transition:.16s}
+.download-btn{height:38px;min-width:76px;border:1px solid rgba(255,179,92,.20);border-radius:13px;background:rgba(255,255,255,.025);color:#d6b083;display:flex;align-items:center;justify-content:center;gap:9px;padding:0 11px;cursor:pointer;font-size:8px;transition:.16s}
 .download-btn b{color:var(--accent);font-size:13px}
-.download-btn:hover:not(:disabled){background:rgba(255,179,92,.09);transform:translateY(-1px)}
+.download-btn:hover:not(:disabled){background:rgba(255,179,92,.08);border-color:rgba(255,179,92,.32);transform:translateY(-1px)}
 .download-btn:disabled{opacity:.28;cursor:not-allowed}
 
 .prompt-panel textarea{flex:1 1 auto;min-height:0;width:100%;resize:none;border:1px solid var(--line);outline:none;border-radius:15px;background:rgba(0,0,0,.23);color:#eee8df;padding:13px 14px;font-size:10px;line-height:1.65}
