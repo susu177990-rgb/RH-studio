@@ -48,6 +48,15 @@
           </div>
           <i class="active-dot"></i>
         </button>
+
+        <button class="app-item" data-app="krea2-white-marble" type="button">
+          <div class="app-icon">WM</div>
+          <div class="app-copy">
+            <strong>Krea2 turbo White_Marble-AIO</strong>
+            <span>Portrait Master</span>
+          </div>
+          <i class="active-dot"></i>
+        </button>
       </div>
     </div>
 
@@ -427,6 +436,89 @@
 
         <button id="imageUpscaleRunBtn" class="generate-btn image-generate-btn" type="button">
           <span class="image-upscale-generate-label">开始生成</span><b>↗</b>
+        </button>
+      </section>
+    </div>
+
+
+    <div id="workspaceWhiteMarble" class="workspace app-workspace image-workspace hidden">
+      <div class="image-workspace-main">
+        <section class="image-prompt-panel glass">
+          <div class="panel-head">
+            <div>
+              <span>PROMPT INPUT</span>
+              <h2>提示词</h2>
+            </div>
+            <b id="whiteMarblePromptCount">0</b>
+          </div>
+          <textarea id="whiteMarblePromptInput" placeholder="描述人物、姿态、服装、场景、镜头、光线、材质与整体肖像风格……"></textarea>
+          <div class="image-app-note">
+            <i></i>
+            <div>
+              <strong>Krea2 turbo White_Marble-AIO（Portrait Master）</strong>
+              <span>默认 1080 × 1920，单张输出；Width、Height、Seed 可调。</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="output-panel glass">
+          <div class="panel-head output-head">
+            <div>
+              <span>IMAGE OUTPUT</span>
+              <h2>图片预览</h2>
+            </div>
+            <div class="output-head-actions">
+              <div class="status-pill">
+                <i id="whiteMarbleStatusDot" class="status-dot"></i>
+                <div><strong id="whiteMarbleStatusText">等待生成</strong><span id="whiteMarbleTaskMeta">READY</span></div>
+              </div>
+              <button id="whiteMarbleDownloadBtn" class="download-btn" type="button" disabled>
+                <span>下载</span><b>↓</b>
+              </button>
+            </div>
+          </div>
+
+          <div class="image-preview-shell">
+            <div id="whiteMarbleResultArea" class="image-preview-stage">
+              <div class="empty-state">
+                <div class="empty-mark">＋</div>
+                <strong>准备生成肖像</strong>
+                <span>输入提示词并设置输出尺寸，生成结果会显示在这里。</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="image-control-panel white-marble-control-panel glass">
+        <div class="image-control-copy">
+          <span>GENERATION CONTROL</span>
+          <h2>操作区</h2>
+          <small>RunningHub AI App · 2083580194556071937</small>
+        </div>
+
+        <label class="image-control-field">
+          <span>Width</span>
+          <input id="whiteMarbleWidth" class="control-input" inputmode="numeric" value="1080">
+        </label>
+
+        <label class="image-control-field">
+          <span>Height</span>
+          <input id="whiteMarbleHeight" class="control-input" inputmode="numeric" value="1920">
+        </label>
+
+        <label class="image-control-field white-marble-seed-field">
+          <span>Seed</span>
+          <input id="whiteMarbleSeed" class="control-input" inputmode="numeric" value="527633149753192">
+        </label>
+
+        <div class="image-workflow-state">
+          <i></i>
+          <span>Batch · 1</span>
+        </div>
+
+        <button id="whiteMarbleRunBtn" class="generate-btn image-generate-btn" type="button">
+          <span class="white-marble-generate-label">开始生成</span><b>↗</b>
         </button>
       </section>
     </div>
