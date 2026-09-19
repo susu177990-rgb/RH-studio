@@ -41,6 +41,37 @@
 .prompt-variable-dot.ok{background:var(--good);box-shadow:0 0 12px rgba(215,197,158,.30)}
 .prompt-variable-dot.warn{background:var(--bad);box-shadow:0 0 12px rgba(239,136,126,.24)}
 .prompt-template-count{color:#665e56;font:800 7px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.clothes-generator-card{
+  margin:0 0 12px;padding:11px;border:1px solid var(--line);border-radius:14px;
+  background:rgba(255,255,255,.018)
+}
+.clothes-generator-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.clothes-generator-head strong{display:block;font-size:9px;color:#bdb3a9}
+.clothes-generator-head span{display:block;margin-top:4px;color:#665e56;font-size:7px;line-height:1.5}
+.clothes-generator-head b{
+  flex:0 0 auto;border:1px solid rgba(255,179,92,.16);border-radius:999px;
+  padding:5px 8px;color:#c09668;background:rgba(255,179,92,.04);
+  font:800 6px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.75px
+}
+.clothes-seed-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}
+.clothes-seed-row .input{height:36px}
+.clothes-seed-use{height:36px;white-space:nowrap}
+.clothes-last-result{
+  margin-top:9px;padding:9px 10px;border:1px solid rgba(255,255,255,.045);border-radius:11px;
+  background:rgba(0,0,0,.18);display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:start
+}
+.clothes-last-result>span{
+  color:#5f5750;font:800 6px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.7px;
+  padding-top:2px
+}
+.clothes-last-result>div{min-width:0}
+.clothes-last-result strong{
+  display:block;color:#a69c92;font-size:7.5px;line-height:1.55;font-weight:600;
+  white-space:normal;overflow-wrap:anywhere
+}
+.clothes-last-result small{
+  display:block;margin-top:5px;color:#665d55;font:700 6px ui-monospace,SFMono-Regular,Menlo,monospace
+}
 @media(max-width:620px){
   .prompt-quick-btn{width:30px;padding:0;justify-content:center}
   .prompt-quick-btn span{display:none}
@@ -905,7 +936,28 @@
       </div>
 
       <div class="prompt-template-note">
-        <code>{{clothes}}</code> 是预留服装变量。本阶段只保留变量，不执行随机服装替换；只要模板里仍存在它，后续服装脚本即可继续接管。
+        <code>{{clothes}}</code> 是服装生成器的唯一替换变量。只要模板里保留它，点击“提示词生成”就会先生成一套日常轻性感穿搭，再只替换这一处；模板其它内容保持原样。
+      </div>
+
+      <div class="clothes-generator-card">
+        <div class="clothes-generator-head">
+          <div>
+            <strong>服装随机生成器 · V1</strong>
+            <span>留空 Seed 时每次随机；输入相同 Seed 可稳定复现同一套服装。</span>
+          </div>
+          <b>RULE BASED</b>
+        </div>
+        <div class="clothes-seed-row">
+          <input id="clothesSeedInput" class="input" inputmode="numeric" autocomplete="off" placeholder="Seed · 留空 = 每次随机">
+          <button id="useLastClothesSeed" class="btn soft clothes-seed-use" type="button">填入最近 Seed</button>
+        </div>
+        <div class="clothes-last-result">
+          <span>LAST</span>
+          <div>
+            <strong id="lastClothesText">尚未生成服装</strong>
+            <small id="lastClothesSeed">SEED · —</small>
+          </div>
+        </div>
       </div>
 
       <textarea id="promptTemplateInput" class="prompt-template-editor" spellcheck="false" aria-label="视频快捷提示词模板"></textarea>
@@ -931,6 +983,12 @@
 (() => {
   const PROMPT_TEMPLATE_KEY = 'rhstudio.videoPromptTemplate';
   const CLOTHES_PLACEHOLDER = '{{clothes}}';
+  const CLOTHES_RECENT_KEY = 'rhstudio.clothes.recent';
+  const CLOTHES_LAST_SEED_KEY = 'rhstudio.clothes.lastSeed';
+  const CLOTHES_LAST_TEXT_KEY = 'rhstudio.clothes.lastText';
+  const RECENT_LIMIT = 30;
+  const MAX_GENERATION_ATTEMPTS = 64;
+
   const DEFAULT_VIDEO_PROMPT_TEMPLATE = `9:16 竖屏，约 10 秒，真人写实手机自拍视频质感，单镜头连续拍摄，无转场，无剪辑。
 
 一名年轻成年东亚女性站在室内高档烟酒 / 商品零售店的玻璃展示柜前。女性身材纤细修长，长黑发自然披散，侧分发型，精致但自然的日常妆容，佩戴简约耳饰和项链。
@@ -981,16 +1039,527 @@
 
 单镜头到底，无字幕，无文字，无水印，无慢动作，无快速运镜，无突然动作，无镜头切换。`;
 
+  const STYLE_POOL = [
+    {id:'clean_daily', weight:40},
+    {id:'soft_feminine', weight:35},
+    {id:'light_sexy', weight:25}
+  ];
+
+  const OUTFIT_TYPES = [
+    {id:'dress', weight:28},
+    {id:'top_skirt', weight:24},
+    {id:'top_pants', weight:16},
+    {id:'top_shorts', weight:10},
+    {id:'knit_set', weight:8},
+    {id:'top_long_skirt', weight:8},
+    {id:'casual_set', weight:6}
+  ];
+
+  const TYPE_STYLE_FACTOR = {
+    clean_daily:{dress:.78,top_skirt:1.00,top_pants:1.36,top_shorts:.90,knit_set:1.08,top_long_skirt:1.02,casual_set:1.42},
+    soft_feminine:{dress:1.42,top_skirt:1.24,top_pants:.78,top_shorts:.78,knit_set:1.18,top_long_skirt:1.24,casual_set:.82},
+    light_sexy:{dress:1.18,top_skirt:1.28,top_pants:.88,top_shorts:1.32,knit_set:.92,top_long_skirt:.76,casual_set:.72}
+  };
+
+  const TOPS = [
+    {id:'fitted_short_sleeve',name:'修身短袖上衣',score:1,fitted:true,materials:['cotton','stretch','rib'],tags:['clean_daily','soft_feminine']},
+    {id:'square_short_sleeve',name:'方领短袖上衣',score:1,fitted:true,square:true,materials:['cotton','stretch','rib'],tags:['soft_feminine','light_sexy']},
+    {id:'fitted_knit',name:'修身针织上衣',score:1,fitted:true,materials:['soft_knit','rib','light_knit'],tags:['clean_daily','soft_feminine']},
+    {id:'cropped_knit',name:'短款针织上衣',score:1,fitted:true,cropped:true,materials:['soft_knit','rib','light_knit'],tags:['soft_feminine','light_sexy']},
+    {id:'thin_strap',name:'细肩带上衣',score:2,fitted:true,strap:true,materials:['stretch','rib','satin'],tags:['light_sexy']},
+    {id:'camisole',name:'吊带上衣',score:2,fitted:true,strap:true,materials:['stretch','rib','satin'],tags:['light_sexy']},
+    {id:'one_shoulder',name:'单侧露肩上衣',score:1,fitted:true,shoulder:true,materials:['stretch','rib','soft_knit'],tags:['soft_feminine','light_sexy']},
+    {id:'off_shoulder',name:'露肩上衣',score:1,fitted:true,shoulder:true,materials:['stretch','rib','soft_knit'],tags:['light_sexy']},
+    {id:'sleeveless_fitted',name:'无袖修身上衣',score:1,fitted:true,materials:['cotton','stretch','rib'],tags:['clean_daily','light_sexy']},
+    {id:'simple_long_sleeve',name:'简约长袖上衣',score:0,fitted:false,materials:['cotton','soft_knit','light_knit'],tags:['clean_daily']},
+    {id:'crew_short_sleeve',name:'修身圆领短袖上衣',score:1,fitted:true,materials:['cotton','stretch','rib'],tags:['clean_daily']},
+    {id:'light_shirt',name:'轻薄衬衫',score:0,fitted:false,materials:['shirt','drape'],tags:['clean_daily']},
+    {id:'cropped_cardigan',name:'短款开衫',score:1,fitted:false,cropped:true,materials:['soft_knit','light_knit'],tags:['clean_daily','soft_feminine']},
+    {id:'short_sleeve_knit',name:'短袖针织上衣',score:0,fitted:false,materials:['soft_knit','rib','light_knit'],tags:['clean_daily','soft_feminine']},
+    {id:'square_knit',name:'方领针织上衣',score:1,fitted:true,square:true,materials:['soft_knit','rib','light_knit'],tags:['soft_feminine']},
+    {id:'sleeveless_knit',name:'无袖针织上衣',score:0,fitted:false,materials:['soft_knit','rib','light_knit'],tags:['clean_daily','soft_feminine']},
+    {id:'fitted_long_sleeve',name:'简约修身长袖上衣',score:1,fitted:true,materials:['soft_knit','stretch','rib'],tags:['clean_daily','soft_feminine']},
+    {id:'soft_cardigan',name:'柔软短款开衫',score:1,fitted:false,cropped:true,materials:['soft_knit','light_knit'],tags:['soft_feminine']}
+  ];
+
+  const SKIRTS = [
+    {id:'high_waist_short',name:'高腰短裙',score:1,highWaist:true,fitted:false,materials:['stretch','soft_knit','drape'],tags:['clean_daily','soft_feminine']},
+    {id:'a_line_short',name:'高腰A字短裙',score:1,highWaist:true,fitted:false,materials:['stretch','soft_knit','drape'],tags:['clean_daily','soft_feminine']},
+    {id:'fitted_short',name:'修身短裙',score:2,highWaist:true,fitted:true,materials:['stretch','rib','soft_knit'],tags:['light_sexy']},
+    {id:'denim_short_skirt',name:'高腰牛仔短裙',score:1,highWaist:true,fitted:false,materials:['denim'],tags:['clean_daily']},
+    {id:'knit_short_skirt',name:'简约针织短裙',score:1,highWaist:true,fitted:false,materials:['soft_knit','rib'],tags:['soft_feminine']},
+    {id:'slight_bodycon_short',name:'轻微包臀短裙',score:2,highWaist:true,fitted:true,materials:['stretch','rib','soft_knit'],tags:['light_sexy']}
+  ];
+
+  const SHORTS = [
+    {id:'casual_shorts',name:'高腰休闲短裤',score:1,highWaist:true,fitted:false,materials:['cotton','drape'],tags:['clean_daily']},
+    {id:'denim_shorts',name:'高腰牛仔短裤',score:1,highWaist:true,fitted:false,materials:['denim'],tags:['clean_daily','light_sexy']},
+    {id:'fitted_shorts',name:'简约修身短裤',score:1,highWaist:true,fitted:true,materials:['stretch','cotton'],tags:['light_sexy']}
+  ];
+
+  const PANTS = [
+    {id:'straight_jeans',name:'高腰直筒牛仔裤',score:0,highWaist:true,fitted:false,materials:['denim'],tags:['clean_daily']},
+    {id:'slim_flare',name:'修身微喇裤',score:1,highWaist:true,fitted:true,materials:['stretch','drape'],tags:['clean_daily','light_sexy']},
+    {id:'casual_pants',name:'高腰休闲长裤',score:0,highWaist:true,fitted:false,materials:['drape','cotton'],tags:['clean_daily']},
+    {id:'straight_pants',name:'简约直筒裤',score:0,highWaist:true,fitted:false,materials:['drape','cotton'],tags:['clean_daily']},
+    {id:'drape_pants',name:'柔软垂感长裤',score:0,highWaist:true,fitted:false,materials:['drape'],tags:['clean_daily','soft_feminine']}
+  ];
+
+  const LONG_SKIRTS = [
+    {id:'straight_long_skirt',name:'高腰直筒长裙',score:0,highWaist:true,fitted:false,long:true,materials:['drape','soft_knit'],tags:['clean_daily','soft_feminine']},
+    {id:'knit_long_skirt',name:'简约针织长裙',score:0,highWaist:true,fitted:false,long:true,materials:['soft_knit','rib'],tags:['soft_feminine']},
+    {id:'slit_long_skirt',name:'高腰开衩长裙',score:1,highWaist:true,fitted:false,long:true,slit:true,materials:['drape','soft_knit'],tags:['soft_feminine','light_sexy']},
+    {id:'drape_long_skirt',name:'柔软垂感半身裙',score:0,highWaist:true,fitted:false,long:true,materials:['drape','chiffon'],tags:['soft_feminine']}
+  ];
+
+  const DRESSES = [
+    {id:'fitted_dress',name:'修身连衣裙',score:1,fitted:true,materials:['stretch','rib','soft_knit'],tags:['soft_feminine','light_sexy']},
+    {id:'knit_dress',name:'针织连衣裙',score:0,fitted:false,materials:['soft_knit','rib','light_knit'],tags:['clean_daily','soft_feminine']},
+    {id:'camisole_dress',name:'吊带连衣裙',score:2,fitted:true,strap:true,materials:['stretch','rib','satin'],tags:['light_sexy']},
+    {id:'square_dress',name:'方领连衣裙',score:1,fitted:false,square:true,materials:['stretch','rib','soft_knit'],tags:['soft_feminine']},
+    {id:'sleeveless_dress',name:'无袖连衣裙',score:0,fitted:false,materials:['stretch','soft_knit','drape'],tags:['clean_daily','soft_feminine']},
+    {id:'short_sleeve_fitted_dress',name:'短袖修身连衣裙',score:1,fitted:true,materials:['stretch','rib','soft_knit'],tags:['clean_daily','soft_feminine']},
+    {id:'long_sleeve_fitted_dress',name:'长袖修身连衣裙',score:1,fitted:true,materials:['soft_knit','rib','stretch'],tags:['soft_feminine']},
+    {id:'thin_strap_dress',name:'细肩带连衣裙',score:2,fitted:true,strap:true,materials:['stretch','rib','satin'],tags:['light_sexy']},
+    {id:'waist_dress',name:'简约收腰连衣裙',score:1,fitted:false,materials:['drape','soft_knit','stretch'],tags:['soft_feminine']},
+    {id:'short_knit_dress',name:'短袖针织连衣裙',score:0,fitted:false,materials:['soft_knit','rib','light_knit'],tags:['clean_daily','soft_feminine']},
+    {id:'square_knit_dress',name:'方领针织连衣裙',score:1,fitted:false,square:true,materials:['soft_knit','rib'],tags:['soft_feminine']},
+    {id:'sleeveless_knit_dress',name:'无袖针织连衣裙',score:0,fitted:false,materials:['soft_knit','rib'],tags:['clean_daily','soft_feminine']},
+    {id:'straight_dress',name:'简约直筒连衣裙',score:0,fitted:false,materials:['drape','cotton','soft_knit'],tags:['clean_daily']},
+    {id:'crew_fitted_dress',name:'修身圆领连衣裙',score:1,fitted:true,materials:['stretch','rib','soft_knit'],tags:['clean_daily']},
+    {id:'off_shoulder_dress',name:'露肩修身连衣裙',score:2,fitted:true,shoulder:true,materials:['stretch','rib','soft_knit'],tags:['light_sexy']}
+  ];
+
+  const KNIT_SETS = [
+    {id:'knit_set_short',top:{id:'ks_top1',name:'修身短袖针织上衣',score:1,fitted:true,cropped:false,materials:['soft_knit','rib']},bottom:{id:'ks_bottom1',name:'高腰针织短裙',score:1,highWaist:true,fitted:false,materials:['soft_knit','rib']},tags:['soft_feminine']},
+    {id:'knit_set_square',top:{id:'ks_top2',name:'方领针织上衣',score:1,fitted:true,square:true,materials:['soft_knit','rib']},bottom:{id:'ks_bottom2',name:'高腰针织短裙',score:1,highWaist:true,fitted:false,materials:['soft_knit','rib']},tags:['soft_feminine','light_sexy']},
+    {id:'knit_set_crop',top:{id:'ks_top3',name:'短款针织上衣',score:1,fitted:true,cropped:true,materials:['soft_knit','rib']},bottom:{id:'ks_bottom3',name:'高腰直筒针织长裙',score:0,highWaist:true,fitted:false,long:true,materials:['soft_knit','rib']},tags:['soft_feminine','light_sexy']},
+    {id:'knit_set_sleeveless',top:{id:'ks_top4',name:'无袖针织上衣',score:0,fitted:false,materials:['soft_knit','rib']},bottom:{id:'ks_bottom4',name:'高腰直筒针织长裙',score:0,highWaist:true,fitted:false,long:true,materials:['soft_knit','rib']},tags:['clean_daily','soft_feminine']}
+  ];
+
+  const CASUAL_SETS = [
+    {id:'casual_set_pants',top:{id:'cs_top1',name:'修身短袖上衣',score:1,fitted:true,materials:['cotton','stretch']},bottom:{id:'cs_bottom1',name:'高腰直筒休闲裤',score:0,highWaist:true,fitted:false,materials:['drape','cotton']},tags:['clean_daily']},
+    {id:'casual_set_shirt',top:{id:'cs_top2',name:'轻薄衬衫',score:0,fitted:false,materials:['shirt','drape']},bottom:{id:'cs_bottom2',name:'高腰直筒裤',score:0,highWaist:true,fitted:false,materials:['drape','cotton']},tags:['clean_daily']},
+    {id:'casual_set_skirt',top:{id:'cs_top3',name:'短袖针织上衣',score:0,fitted:false,materials:['soft_knit','rib']},bottom:{id:'cs_bottom3',name:'高腰A字短裙',score:1,highWaist:true,fitted:false,materials:['stretch','soft_knit']},tags:['clean_daily','soft_feminine']},
+    {id:'casual_set_drape',top:{id:'cs_top4',name:'简约长袖上衣',score:0,fitted:false,materials:['soft_knit','cotton']},bottom:{id:'cs_bottom4',name:'柔软垂感长裤',score:0,highWaist:true,fitted:false,materials:['drape']},tags:['clean_daily','soft_feminine']}
+  ];
+
+  const DRESS_LENGTHS = [
+    {id:'mid_thigh',name:'大腿中部长度',weight:35,score:2},
+    {id:'above_knee',name:'膝上长度',weight:30,score:1},
+    {id:'short_above_knee',name:'膝上偏短',weight:15,score:2},
+    {id:'near_knee',name:'膝盖附近长度',weight:12,score:0},
+    {id:'mid_calf',name:'小腿中部长度',weight:8,score:0}
+  ];
+
+  const MATERIALS = {
+    soft_knit:'柔软针织面料',
+    rib:'细罗纹针织材质',
+    cotton:'柔软棉质面料',
+    stretch:'柔软微弹面料',
+    drape:'柔软垂感面料',
+    light_knit:'轻薄针织面料',
+    denim:'柔软牛仔材质',
+    shirt:'轻薄衬衫面料',
+    satin:'细腻缎面',
+    chiffon:'轻薄雪纺',
+    wool:'柔软羊毛混纺',
+    brushed:'磨毛针织'
+  };
+
+  const COLORS = [
+    '黑色','白色','奶油白','米白','浅灰色','深灰色','米杏色','浅粉色','烟粉色','酒红色',
+    '咖色','巧克力棕','深蓝色','雾蓝色','墨绿色'
+  ];
+
+  const LIGHT_COLORS = ['白色','奶油白','米白','浅灰色','米杏色','浅粉色','烟粉色','雾蓝色'];
+  const DARK_COLORS = ['黑色','深灰色','酒红色','咖色','巧克力棕','深蓝色','墨绿色'];
+
+  const PALETTES = {
+    mono:[
+      ['黑色','深灰色'],['奶油白','米白'],['浅灰色','深灰色'],['米杏色','咖色'],
+      ['咖色','巧克力棕'],['深蓝色','雾蓝色'],['白色','奶油白']
+    ],
+    contrast:[
+      ['奶油白','深灰色'],['浅灰色','黑色'],['浅粉色','深蓝色'],['米杏色','咖色'],
+      ['白色','深蓝色'],['米白','深灰色'],['奶油白','巧克力棕']
+    ],
+    neutralSoft:[
+      ['白色','浅粉色'],['浅灰色','雾蓝色'],['黑色','酒红色'],['米白','墨绿色'],
+      ['奶油白','浅咖色'],['浅灰色','烟粉色'],['米杏色','雾蓝色']
+    ],
+    special:[
+      ['墨绿色','奶油白'],['浅紫色','深灰色'],['雾蓝色','米白'],['酒红色','黑色'],
+      ['巧克力棕','奶油白'],['烟灰蓝','浅灰色']
+    ]
+  };
+
+  const DETAILS = {
+    dress:['简洁收腰设计','自然贴身剪裁','轻微褶皱','柔软垂感','干净利落剪裁'],
+    combo:['整体自然简洁','整体简洁贴身','简洁日常剪裁','干净利落剪裁','整体年轻自然'],
+    knit_set:['细腻织纹','简洁收腰设计','自然贴身剪裁','整体柔和简洁'],
+    casual_set:['简洁日常剪裁','干净利落剪裁','整体年轻自然','整体自然简洁']
+  };
+
+  const BLACKLIST = [
+    '女仆','洛丽塔','JK','学院制服','护士','空姐','秘书装','职业制服','兔女郎','舞台装','表演服','夜店装',
+    '礼服','晚礼服','婚纱','旗袍','汉服','哥特','朋克','赛博朋克','机能风','夸张Y2K','大面积镂空',
+    '渔网','乳胶','漆皮','亮片','透视装','内衣外穿','束缚带','大量链条','大量金属','荧光色','超大Logo'
+  ];
+
   const overlay = document.querySelector('#promptSettingsOverlay');
   const editor = document.querySelector('#promptTemplateInput');
   const count = document.querySelector('#promptTemplateCount');
   const variableDot = document.querySelector('#promptTemplateVariableDot');
   const variableText = document.querySelector('#promptTemplateVariableText');
   const saveState = document.querySelector('#promptTemplateSaveState');
+  const clothesSeedInput = document.querySelector('#clothesSeedInput');
+  const useLastClothesSeed = document.querySelector('#useLastClothesSeed');
+  const lastClothesText = document.querySelector('#lastClothesText');
+  const lastClothesSeed = document.querySelector('#lastClothesSeed');
 
   function currentTemplate() {
     const saved = localStorage.getItem(PROMPT_TEMPLATE_KEY);
     return saved === null ? DEFAULT_VIDEO_PROMPT_TEMPLATE : saved;
+  }
+
+  function normalizeSeed(value) {
+    const n = Math.abs(Math.trunc(Number(value)));
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return (n % 2147483646) + 1;
+  }
+
+  function randomSeed() {
+    try {
+      const values = new Uint32Array(1);
+      crypto.getRandomValues(values);
+      return (values[0] % 2147483646) + 1;
+    } catch {
+      return ((Date.now() ^ Math.floor(Math.random() * 2147483647)) >>> 0) % 2147483646 + 1;
+    }
+  }
+
+  function createRng(seed) {
+    let a = seed >>> 0;
+    return function() {
+      a |= 0;
+      a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function pick(rng, items) {
+    return items[Math.floor(rng() * items.length)];
+  }
+
+  function weightedPick(rng, items, getWeight = item => item.weight || 1) {
+    const total = items.reduce((sum, item) => sum + Math.max(0, getWeight(item)), 0);
+    if (total <= 0) return items[0];
+    let cursor = rng() * total;
+    for (const item of items) {
+      cursor -= Math.max(0, getWeight(item));
+      if (cursor <= 0) return item;
+    }
+    return items[items.length - 1];
+  }
+
+  function styleWeightedPiece(rng, pool, style) {
+    return weightedPick(rng, pool, item => (item.tags?.includes(style) ? 2.15 : 1));
+  }
+
+  function selectOutfitType(rng, style) {
+    const factors = TYPE_STYLE_FACTOR[style] || {};
+    return weightedPick(rng, OUTFIT_TYPES, item => item.weight * (factors[item.id] || 1)).id;
+  }
+
+  function selectColorForStyle(rng, style) {
+    if (style === 'soft_feminine' && rng() < .68) return pick(rng, LIGHT_COLORS);
+    if (style === 'light_sexy' && rng() < .56) return pick(rng, DARK_COLORS);
+    return pick(rng, COLORS);
+  }
+
+  function selectPalette(rng, style, outfitType) {
+    if (outfitType === 'dress') return [selectColorForStyle(rng, style)];
+
+    const mode = weightedPick(rng, [
+      {id:'mono',weight:30},
+      {id:'contrast',weight:35},
+      {id:'neutralSoft',weight:25},
+      {id:'special',weight:10}
+    ]).id;
+
+    const pair = [...pick(rng, PALETTES[mode])];
+    if (rng() < .5) pair.reverse();
+    return pair;
+  }
+
+  function chooseSharedOrCompatibleMaterial(rng, pieces) {
+    const materialLists = pieces.map(piece => piece.materials || []);
+    const shared = materialLists[0]?.filter(id => materialLists.every(list => list.includes(id))) || [];
+    if (shared.length) {
+      const id = pick(rng, shared);
+      return {ids:[id], text:MATERIALS[id], compatible:true};
+    }
+
+    const ids = materialLists.map(list => pick(rng, list));
+    const uniqueIds = [...new Set(ids)];
+    const texts = uniqueIds.map(id => MATERIALS[id]).filter(Boolean);
+    if (texts.length === 1) return {ids:uniqueIds, text:texts[0], compatible:true};
+
+    const shortened = texts.map(text => text.replace(/面料|材质/g,''));
+    return {ids:uniqueIds, text:shortened.join('与') + '材质', compatible:true};
+  }
+
+  function desiredSexyCount(rng) {
+    return weightedPick(rng, [
+      {value:0,weight:20},
+      {value:1,weight:55},
+      {value:2,weight:25}
+    ]).value;
+  }
+
+  function buildSexyCandidates(ctx) {
+    const list = [];
+    const top = ctx.top;
+    const bottom = ctx.bottom;
+    const dress = ctx.dress;
+
+    if (top) {
+      if (!top.strap && !top.shoulder) list.push({id:'collarbone',text:'露出自然锁骨线条',score:1});
+      if (!top.strap && !top.shoulder && !top.square) list.push({id:'low_neck',text:'领口轻微偏低',score:2});
+      if (top.cropped && bottom?.highWaist && !(top.strap && ctx.type === 'top_shorts')) {
+        list.push({id:'slight_waist',text:'微微露腰',score:2});
+      }
+      if (!top.strap && !top.shoulder && !top.square) list.push({id:'one_shoulder_hint',text:'单侧肩颈线条自然露出',score:1});
+    }
+
+    if (dress) {
+      if (!dress.strap && !dress.shoulder) list.push({id:'dress_collarbone',text:'露出自然锁骨线条',score:1});
+      if (!dress.strap && !dress.shoulder && !dress.square) list.push({id:'dress_low_neck',text:'领口轻微偏低',score:2});
+      if (!dress.strap && ctx.length && ['near_knee','mid_calf'].includes(ctx.length.id)) {
+        list.push({id:'dress_slit',text:'侧边小开衩',score:1});
+      }
+    }
+
+    if (bottom?.long && !bottom.slit) list.push({id:'long_skirt_slit',text:'侧边小开衩',score:1});
+    return list;
+  }
+
+  function chooseSexyExtras(rng, ctx, baseScore) {
+    const target = desiredSexyCount(rng);
+    const candidates = buildSexyCandidates(ctx);
+    const chosen = [];
+    let score = baseScore;
+
+    while (chosen.length < target && candidates.length) {
+      const index = Math.floor(rng() * candidates.length);
+      const candidate = candidates.splice(index, 1)[0];
+
+      if (chosen.some(item => item.id === candidate.id)) continue;
+      if (score + candidate.score > 4) continue;
+
+      const hasLowNeck = candidate.id.includes('low_neck') || chosen.some(item => item.id.includes('low_neck'));
+      const hasWaist = candidate.id === 'slight_waist' || chosen.some(item => item.id === 'slight_waist');
+      const strap = ctx.top?.strap || ctx.dress?.strap;
+
+      if (strap && hasLowNeck) continue;
+      if (strap && hasWaist && ctx.type === 'top_shorts') continue;
+
+      chosen.push(candidate);
+      score += candidate.score;
+    }
+
+    return {items:chosen, score};
+  }
+
+  function chooseDetail(rng, type) {
+    if (rng() < .18) return '';
+    const key = type === 'dress' ? 'dress' : type === 'knit_set' ? 'knit_set' : type === 'casual_set' ? 'casual_set' : 'combo';
+    return pick(rng, DETAILS[key]);
+  }
+
+  function buildPieces(rng, type, style) {
+    if (type === 'dress') {
+      return {dress:styleWeightedPiece(rng, DRESSES, style)};
+    }
+    if (type === 'top_skirt') {
+      return {top:styleWeightedPiece(rng, TOPS, style),bottom:styleWeightedPiece(rng, SKIRTS, style)};
+    }
+    if (type === 'top_pants') {
+      return {top:styleWeightedPiece(rng, TOPS.filter(item => !item.strap || item.id === 'thin_strap'), style),bottom:styleWeightedPiece(rng, PANTS, style)};
+    }
+    if (type === 'top_shorts') {
+      return {top:styleWeightedPiece(rng, TOPS, style),bottom:styleWeightedPiece(rng, SHORTS, style)};
+    }
+    if (type === 'top_long_skirt') {
+      return {top:styleWeightedPiece(rng, TOPS, style),bottom:styleWeightedPiece(rng, LONG_SKIRTS, style)};
+    }
+    if (type === 'knit_set') {
+      const set = styleWeightedPiece(rng, KNIT_SETS, style);
+      return {setId:set.id,top:set.top,bottom:set.bottom};
+    }
+    const set = styleWeightedPiece(rng, CASUAL_SETS, style);
+    return {setId:set.id,top:set.top,bottom:set.bottom};
+  }
+
+  function buildCandidate(seed) {
+    const rng = createRng(seed);
+    const style = weightedPick(rng, STYLE_POOL).id;
+    const type = selectOutfitType(rng, style);
+    const pieces = buildPieces(rng, type, style);
+    const palette = selectPalette(rng, style, type);
+    const length = type === 'dress' ? weightedPick(rng, DRESS_LENGTHS) : null;
+
+    let baseScore = 0;
+    if (pieces.dress) baseScore += pieces.dress.score || 0;
+    if (pieces.top) baseScore += pieces.top.score || 0;
+    if (pieces.bottom) baseScore += pieces.bottom.score || 0;
+    if (length) baseScore += length.score || 0;
+
+    if (baseScore > 4) return null;
+
+    const materialPieces = [pieces.dress, pieces.top, pieces.bottom].filter(Boolean);
+    const material = chooseSharedOrCompatibleMaterial(rng, materialPieces);
+
+    const ctx = {
+      type,
+      top:pieces.top || null,
+      bottom:pieces.bottom || null,
+      dress:pieces.dress || null,
+      length
+    };
+    const sexy = chooseSexyExtras(rng, ctx, baseScore);
+    const detail = chooseDetail(rng, type);
+
+    let text = '';
+    if (type === 'dress') {
+      const clauses = [
+        palette[0] + pieces.dress.name,
+        length.name,
+        material.text
+      ];
+      if (sexy.items.length) clauses.push(sexy.items.map(item => item.text).join('，'));
+      if (detail) clauses.push(detail);
+      text = clauses.join('，') + '。';
+    } else {
+      const colorA = palette[0];
+      const colorB = palette[1] || palette[0];
+      const clauses = [
+        colorA + pieces.top.name,
+        '搭配' + colorB + pieces.bottom.name,
+        material.text
+      ];
+      if (sexy.items.length) clauses.push(sexy.items.map(item => item.text).join('，'));
+      if (detail) clauses.push(detail);
+      text = clauses.join('，') + '。';
+    }
+
+    const pieceIds = [
+      pieces.setId || '',
+      pieces.dress?.id || '',
+      pieces.top?.id || '',
+      pieces.bottom?.id || ''
+    ].filter(Boolean);
+
+    const signature = [
+      type,
+      pieceIds.join('+'),
+      palette.join('+'),
+      length?.id || '',
+      sexy.items.map(item => item.id).sort().join('+'),
+      detail
+    ].join('|');
+
+    const bothFitted = !!(pieces.top?.fitted && pieces.bottom?.fitted);
+    let aestheticScore = 100;
+    if (sexy.items.length > 2) aestheticScore -= 30;
+    if (sexy.score > 4) aestheticScore -= 40;
+    if (!material.compatible) aestheticScore -= 30;
+    if (palette.length > 3) aestheticScore -= 20;
+    if (bothFitted) aestheticScore -= 10;
+    if (BLACKLIST.some(term => text.includes(term))) aestheticScore -= 30;
+    if (text.length > 70) aestheticScore -= 30;
+    if (text.length > 55) aestheticScore -= 8;
+    if (text.length < 22) aestheticScore -= 15;
+
+    return {
+      seed,
+      style,
+      type,
+      text,
+      signature,
+      sexyScore:sexy.score,
+      aestheticScore,
+      materialIds:material.ids,
+      pieceIds,
+      palette
+    };
+  }
+
+  function generateClothesFromSeed(seed) {
+    const normalized = normalizeSeed(seed);
+    if (!normalized) throw new Error('Seed 必须是正整数');
+
+    for (let salt = 0; salt < MAX_GENERATION_ATTEMPTS; salt++) {
+      const candidateSeed = ((normalized + salt * 104729) % 2147483646) + 1;
+      const candidate = buildCandidate(candidateSeed);
+      if (candidate && candidate.aestheticScore >= 80 && candidate.sexyScore <= 4) {
+        return {
+          ...candidate,
+          requestedSeed:normalized,
+          seed:normalized
+        };
+      }
+    }
+
+    throw new Error('当前 Seed 未生成可用穿搭');
+  }
+
+  function readRecent() {
+    try {
+      const value = JSON.parse(localStorage.getItem(CLOTHES_RECENT_KEY) || '[]');
+      return Array.isArray(value) ? value.slice(0, RECENT_LIMIT) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function rememberResult(result) {
+    const recent = readRecent().filter(item => item?.signature !== result.signature);
+    const next = [{
+      seed:result.seed,
+      signature:result.signature,
+      text:result.text,
+      type:result.type,
+      createdAt:Date.now()
+    }, ...recent].slice(0, RECENT_LIMIT);
+
+    localStorage.setItem(CLOTHES_RECENT_KEY, JSON.stringify(next));
+    localStorage.setItem(CLOTHES_LAST_SEED_KEY, String(result.seed));
+    localStorage.setItem(CLOTHES_LAST_TEXT_KEY, result.text);
+  }
+
+  function generateUniqueRandomClothes() {
+    const recentSignatures = new Set(readRecent().map(item => item?.signature).filter(Boolean));
+    let fallback = null;
+
+    for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
+      const seed = randomSeed();
+      const result = generateClothesFromSeed(seed);
+      fallback = result;
+      if (!recentSignatures.has(result.signature)) return result;
+    }
+
+    return fallback || generateClothesFromSeed(randomSeed());
+  }
+
+  function syncLastClothesUI() {
+    const seed = localStorage.getItem(CLOTHES_LAST_SEED_KEY) || '';
+    const text = localStorage.getItem(CLOTHES_LAST_TEXT_KEY) || '';
+    if (lastClothesText) lastClothesText.textContent = text || '尚未生成服装';
+    if (lastClothesSeed) lastClothesSeed.textContent = seed ? ('SEED · ' + seed) : 'SEED · —';
   }
 
   function syncTemplateMeta(mode='loaded') {
@@ -1002,8 +1571,8 @@
     if (variableDot) variableDot.className = 'prompt-variable-dot ' + (hasPlaceholder ? 'ok' : 'warn');
     if (variableText) {
       variableText.textContent = hasPlaceholder
-        ? '{{clothes}} 已保留'
-        : '未检测到 {{clothes}}';
+        ? '{{clothes}} 已保留 · 服装随机启用'
+        : '未检测到 {{clothes}} · 服装随机停用';
     }
     if (saveState) {
       const saved = localStorage.getItem(PROMPT_TEMPLATE_KEY);
@@ -1017,14 +1586,20 @@
     if (typeof closeDrawers === 'function') closeDrawers();
     editor.value = currentTemplate();
     syncTemplateMeta('loaded');
+    syncLastClothesUI();
     overlay.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-    requestAnimationFrame(() => editor.focus());
+  }
+
+  function resolveRequestedSeed() {
+    const raw = clothesSeedInput?.value.trim() || '';
+    if (!raw) return null;
+    return normalizeSeed(raw);
   }
 
   function fillPrompt(targetId) {
-    const value = currentTemplate();
-    if (!value.trim()) {
+    const template = currentTemplate();
+    if (!template.trim()) {
       if (typeof toast === 'function') toast('提示词模板为空，请先在提示词设置中填写', 'bad');
       openPromptSettings();
       return;
@@ -1033,12 +1608,43 @@
     const target = document.querySelector(targetId);
     if (!target) return;
 
-    target.value = value;
+    if (!template.includes(CLOTHES_PLACEHOLDER)) {
+      target.value = template;
+      target.dispatchEvent(new Event('input', {bubbles:true}));
+      target.dispatchEvent(new Event('change', {bubbles:true}));
+      target.focus();
+      if (typeof toast === 'function') toast('模板中没有 {{clothes}}，已按原模板填充', 'bad');
+      return;
+    }
+
+    let result;
+    try {
+      const requestedSeed = resolveRequestedSeed();
+      if ((clothesSeedInput?.value.trim() || '') && !requestedSeed) {
+        if (typeof toast === 'function') toast('Seed 必须是正整数', 'bad');
+        openPromptSettings();
+        clothesSeedInput?.focus();
+        return;
+      }
+
+      result = requestedSeed
+        ? generateClothesFromSeed(requestedSeed)
+        : generateUniqueRandomClothes();
+    } catch (error) {
+      if (typeof toast === 'function') toast(error?.message || '服装生成失败', 'bad');
+      return;
+    }
+
+    const finalPrompt = template.replace(CLOTHES_PLACEHOLDER, result.text);
+    target.value = finalPrompt;
     target.dispatchEvent(new Event('input', {bubbles:true}));
     target.dispatchEvent(new Event('change', {bubbles:true}));
     target.focus();
 
-    if (typeof toast === 'function') toast('提示词模板已填充', 'good');
+    rememberResult(result);
+    syncLastClothesUI();
+
+    if (typeof toast === 'function') toast('提示词已生成 · Seed ' + result.seed, 'good');
   }
 
   document.querySelector('#openPromptSettings')?.addEventListener('click', openPromptSettings);
@@ -1050,10 +1656,38 @@
     syncTemplateMeta('saved');
   });
 
+  useLastClothesSeed?.addEventListener('click', () => {
+    const seed = localStorage.getItem(CLOTHES_LAST_SEED_KEY) || '';
+    if (!seed) {
+      if (typeof toast === 'function') toast('还没有可复用的 Seed');
+      return;
+    }
+    clothesSeedInput.value = seed;
+    clothesSeedInput.focus();
+    if (typeof toast === 'function') toast('已填入最近 Seed');
+  });
+
+  clothesSeedInput?.addEventListener('input', () => {
+    const raw = clothesSeedInput.value.trim();
+    clothesSeedInput.setCustomValidity(raw && !normalizeSeed(raw) ? 'Seed 必须是正整数' : '');
+  });
+
   window.addEventListener('storage', event => {
-    if (event.key !== PROMPT_TEMPLATE_KEY || overlay?.classList.contains('hidden')) return;
-    editor.value = currentTemplate();
-    syncTemplateMeta('loaded');
+    if (event.key === PROMPT_TEMPLATE_KEY && !overlay?.classList.contains('hidden')) {
+      editor.value = currentTemplate();
+      syncTemplateMeta('loaded');
+    }
+    if ([CLOTHES_LAST_SEED_KEY,CLOTHES_LAST_TEXT_KEY].includes(event.key)) {
+      syncLastClothesUI();
+    }
+  });
+
+  syncLastClothesUI();
+
+  window.RHClothesGenerator = Object.freeze({
+    generate(seed) {
+      return generateClothesFromSeed(seed);
+    }
   });
 })();
 </script>
