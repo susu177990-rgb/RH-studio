@@ -272,14 +272,14 @@ function renderAppFilter(filter='all', persist=true, autoSelect=true) {
   });
 
   const visibleItems = [];
-  $('.app-item').forEach(item => {
+  $$('.app-item').forEach(item => {
     const app = APPS[item.dataset.app];
     const visible = filter === 'all' || app?.type === filter;
     item.classList.toggle('filter-hidden', !visible);
     if (visible) visibleItems.push(item);
   });
 
-  $('.app-filter-btn').forEach(button => {
+  $$('.app-filter-btn').forEach(button => {
     const active = button.dataset.appFilter === filter;
     button.classList.toggle('active', active);
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
@@ -480,11 +480,11 @@ $('#instanceType').addEventListener('change', () => {
   localStorage.setItem(LS.inst, $('#instanceType').value);
 });
 
-$('.app-item').forEach(item => {
+$$('.app-item').forEach(item => {
   item.addEventListener('click', () => setActiveApp(item.dataset.app));
 });
 
-$('.app-filter-btn').forEach(button => {
+$$('.app-filter-btn').forEach(button => {
   button.addEventListener('click', () => {
     renderAppFilter(button.dataset.appFilter || 'all');
   });
