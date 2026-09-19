@@ -419,20 +419,87 @@ function renderSuccess(task) {
   }
 }
 
+function parseMaybeJson(value) {
+  if (value == null || value === '') return null;
+  if (typeof value !== 'string') return value;
+  try { return JSON.parse(value); } catch { return value; }
+}
+
+function formatDiagnostic(value) {
+  const parsed = parseMaybeJson(value);
+  if (parsed == null || parsed === '') return '';
+  if (typeof parsed === 'object') {
+    if (!Array.isArray(parsed) && Object.keys(parsed).length === 0) return '';
+    try {
+      const text = JSON.stringify(parsed, null, 2);
+      return text.length > 3600 ? text.slice(0, 3600) + '\n…' : text;
+    } catch {}
+  }
+  const text = String(parsed);
+  return text.length > 3600 ? text.slice(0, 3600) + '\n…' : text;
+}
+
+function collectFailureNodes(task) {
+  const nodes = new Set();
+  const tips = parseMaybeJson(task?.promptTips);
+  const reason = parseMaybeJson(task?.failedReason);
+
+  if (tips && typeof tips === 'object' && tips.node_errors && typeof tips.node_errors === 'object') {
+    Object.keys(tips.node_errors).forEach(id => nodes.add(String(id)));
+  }
+
+  const visit = (value, depth=0) => {
+    if (value == null || depth > 6) return;
+    if (Array.isArray(value)) {
+      value.forEach(v => visit(v, depth + 1));
+      return;
+    }
+    if (typeof value !== 'object') return;
+
+    for (const [key, val] of Object.entries(value)) {
+      if (/^(nodeId|node_id)$/i.test(key) && val != null && val !== '') {
+        nodes.add(String(val));
+      } else if (/^\d+$/.test(key) && val && typeof val === 'object') {
+        nodes.add(key);
+      }
+      visit(val, depth + 1);
+    }
+  };
+
+  visit(reason);
+  return [...nodes];
+}
+
 function renderFailed(task, message) {
   setStatus('FAILED', task?.taskId ? ('TASK · ' + task.taskId) : 'ERROR');
   setDownload();
 
-  let reason = message || task?.errorMessage || '';
-  if (!reason && task?.failedReason) {
-    try { reason = JSON.stringify(task.failedReason); } catch {}
+  const errorCode = String(task?.errorCode || '').trim();
+  const errorMessage = String(message || task?.errorMessage || 'RunningHub 返回任务失败。').trim();
+  const nodes = collectFailureNodes(task);
+  const failedReason = formatDiagnostic(task?.failedReason);
+  const promptTips = formatDiagnostic(task?.promptTips);
+
+  let details = '';
+  if (errorCode) {
+    details += '<div class="failure-row"><span>ERROR CODE</span><b>' + esc(errorCode) + '</b></div>';
+  }
+  if (nodes.length) {
+    details += '<div class="failure-row"><span>出错节点</span><b>' + esc(nodes.join(', ')) + '</b></div>';
+  }
+  if (failedReason) {
+    details += '<details class="failure-detail" open><summary>failedReason</summary><pre>' + esc(failedReason) + '</pre></details>';
+  }
+  if (promptTips) {
+    details += '<details class="failure-detail"><summary>promptTips</summary><pre>' + esc(promptTips) + '</pre></details>';
   }
 
   $('#resultArea').innerHTML =
-    '<div class="error-state">' +
+    '<div class="error-state diagnostic-error">' +
       '<div class="empty-mark">!</div>' +
       '<strong>生成失败</strong>' +
-      '<span>' + esc(reason || 'RunningHub 返回任务失败。') + '</span>' +
+      '<span class="failure-message">' + esc(errorMessage) + '</span>' +
+      (details ? '<div class="failure-diagnostics">' + details + '</div>' : '') +
     '</div>';
 }
 
