@@ -398,7 +398,7 @@ RH Studio 不是单一的 MinimaxH3 前端，也不是只服务于生视频。
 - 禁止把本应用的 Node ID / 默认值复用于其他应用，除非对应 RunningHub 文档明确一致。
 
 
-### 14.3 2MP 生图 · 1.5×
+### 14.3 krea2 raw turbo dual mining 2 Claire
 
 - `appKey`: `image-2mp-upscale`
 - 类型：纯文本生图
