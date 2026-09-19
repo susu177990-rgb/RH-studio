@@ -453,3 +453,23 @@ RH Studio 不是单一的 MinimaxH3 前端，也不是只服务于生视频。
 - 图片结果使用独立自然比例预览组件。
 - API Key 与运行实例统一使用全局设置。
 - 本应用节点不得与其他 AI App 的同号节点混用。
+
+
+### 14.6 指定人脸文生图V3 -(Qwen/Krea2)双版本
+
+- `appKey`: `face-t2i-v3`
+- 类型：指定人脸参考图 + 文本生图
+- RunningHub AI App ID：`2081918043782344705`
+- 输入：
+  - 人脸参考图：Node 20 / `image`
+  - Prompt：Node 13 / `text`
+- 已确认控制：
+  - 模型分支：Node 209 / `value`，API 示例默认 `true`
+  - 比例：Node 84 / `aspect_ratio`，可选 `1:1` / `3:4` / `4:3` / `2:3` / `3:2` / `9:16` / `16:9`
+  - HD：Node 206 / `value`，API 示例默认 `false`
+  - 输出方式：Node 90 / `value`，当前固定按 API 示例提交 `false`
+- Node 209 的 description 为 `Model <Qwen / Krea2>`，但文档没有明确说明 `true` / `false` 分别对应 Qwen 还是 Krea2。
+- 在对应关系确认前，主界面只显示原始 `true / false` 分支值，不擅自标注为具体模型。
+- 人脸参考图通过 RunningHub 上传接口上传后，将返回值传入 Node 20。
+- 输出：图片；使用独立自然比例预览组件。
+- API Key 与运行实例统一使用全局设置。
