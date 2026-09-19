@@ -52,6 +52,9 @@
       </div>
       <div class="top-actions">
         <div class="live-pill"><i></i><span>ONLINE</span></div>
+        <button id="openHistory" class="history-btn" type="button">
+          <span>生成记录</span><b>↺</b>
+        </button>
         <button id="openSettings" class="settings-btn" type="button">
           <span>设置</span><b>⌘</b>
         </button>
@@ -234,6 +237,28 @@
       </div>
     </div>
   </main>
+</div>
+
+<div id="historyOverlay" class="drawer-overlay hidden">
+  <button class="drawer-backdrop" data-close-history aria-label="关闭生成记录"></button>
+  <aside class="drawer glass history-drawer">
+    <div class="drawer-head">
+      <div><span>GENERATION HISTORY</span><h2>生成记录</h2></div>
+      <button class="drawer-close" data-close-history type="button">×</button>
+    </div>
+
+    <div class="history-toolbar">
+      <span>仅保存在当前浏览器 · 最近 50 条</span>
+      <button id="clearHistory" class="history-clear" type="button">清空记录</button>
+    </div>
+
+    <div id="historyList" class="history-list">
+      <div class="history-empty">
+        <strong>还没有生成记录</strong>
+        <span>提交任务后会自动出现在这里。</span>
+      </div>
+    </div>
+  </aside>
 </div>
 
 <div id="settingsOverlay" class="drawer-overlay hidden">
