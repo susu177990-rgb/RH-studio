@@ -508,3 +508,39 @@ RH Studio 不是单一的 MinimaxH3 前端，也不是只服务于生视频。
 ### 15.1 筛选实现注意
 
 - DOM 批量选择必须使用项目内的 `$$()` helper；`$()` 只返回单个元素，不能用于 `.forEach()`。
+
+
+### 14.8 MinimaxH3多图生视频 (加速版)
+
+- `appKey`: `minimax-h3-multi-fast`
+- 类型：视频生成 / 多图参考 / 双音频 / 单视频参考
+- RunningHub AI App ID：`2086022574387339266`
+- 输入：
+  - 图片 1：Node 141 / `image`
+  - 图片 2：Node 142 / `image`
+  - 图片 3：Node 143 / `image`
+  - 图片 4：Node 161 / `image`
+  - 图片 5：Node 165 / `image`
+  - 图片 6：Node 166 / `image`
+  - 音频 1：Node 144 / `audio`
+  - 音频 2：Node 160 / `audio`
+  - 参考视频：Node 164 / `video`
+  - Prompt：Node 150 / `value`
+- 已确认控制：
+  - 画幅：Node 115 / `aspect_ratio`
+- 按 API 示例固定提交：
+  - Node 147 / `value` = `0.4`
+  - Node 132 / `value` = `10`
+  - Node 159 / `lora_name` = `MysticXXX_MMH3-V2.safetensors`
+  - Node 159 / `strength_model` = `0`
+  - Node 167 / `lora_name` = `MysticXXX_MMH3-V2.safetensors`
+  - Node 167 / `strength_model` = `0`
+  - Node 168 / `lora_name` = `MysticXXX_MMH3-V2.safetensors`
+  - Node 168 / `strength_model` = `0`
+  - Node 163 / `value` = `false`
+  - Node 158 / `value` = `false`
+- 未上传的媒体节点统一按当前视频工作流约定提交 `None`。
+- 至少需要一张参考图才允许提交。
+- API Key 与运行实例统一使用全局设置。
+- 本应用 `type: "video"`，自动进入左侧“视频”分类。
+- 与 `minimax-h3` 使用完全独立的媒体 slot，禁止跨应用上传节点串用。
