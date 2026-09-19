@@ -23,7 +23,7 @@ const APPS = {
     appId: '2090951249314521089',
     name: 'krea2 raw turbo dual mining 2 Claire',
     subtitle: '8 Steps · Euler A',
-    title: 'krea2 raw turbo dual mining 2 Claire · 8 Steps',
+    title: 'krea2 raw turbo dual mining 2 Claire',
     type: 'image'
   }
 };
