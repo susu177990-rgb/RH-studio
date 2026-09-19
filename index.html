@@ -75,6 +75,15 @@
           </div>
           <i class="active-dot"></i>
         </button>
+
+        <button class="app-item" data-app="skin-upscale" type="button">
+          <div class="app-icon">HD</div>
+          <div class="app-copy">
+            <strong>去AI感真实皮肤高清放大</strong>
+            <span>Image Enhance</span>
+          </div>
+          <i class="active-dot"></i>
+        </button>
       </div>
     </div>
 
@@ -721,6 +730,91 @@
 
         <button id="faceT2IRunBtn" class="generate-btn image-generate-btn" type="button">
           <span class="face-t2i-generate-label">开始生成</span><b>↗</b>
+        </button>
+      </section>
+    </div>
+
+
+    <div id="workspaceSkinUpscale" class="workspace app-workspace image-workspace hidden">
+      <div class="image-workspace-main skin-workspace-main">
+        <section class="skin-input-panel glass">
+          <div class="panel-head">
+            <div>
+              <span>IMAGE INPUT</span>
+              <h2>原图</h2>
+            </div>
+            <b>1 INPUT</b>
+          </div>
+
+          <button id="skinUpscaleUpload" class="skin-upload-slot" type="button">
+            <input id="skinUpscaleFileInput" type="file" accept="image/*" hidden>
+            <div id="skinUpscalePreview" class="skin-upload-preview">
+              <span>IMAGE</span><i>＋</i>
+            </div>
+            <div class="skin-upload-copy">
+              <strong id="skinUpscaleFileName">上传需要高清放大的图片</strong>
+              <small>用于真实皮肤增强与去 AI 感处理</small>
+            </div>
+            <em id="skinUpscaleClear" class="slot-clear hidden">×</em>
+          </button>
+
+          <div class="image-app-note">
+            <i></i>
+            <div>
+              <strong>去AI感真实皮肤高清放大</strong>
+              <span>当前 AI App 仅需要一张输入图片。</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="output-panel glass">
+          <div class="panel-head output-head">
+            <div>
+              <span>IMAGE OUTPUT</span>
+              <h2>高清结果预览</h2>
+            </div>
+            <div class="output-head-actions">
+              <div class="status-pill">
+                <i id="skinUpscaleStatusDot" class="status-dot"></i>
+                <div><strong id="skinUpscaleStatusText">等待生成</strong><span id="skinUpscaleTaskMeta">READY</span></div>
+              </div>
+              <button id="skinUpscaleDownloadBtn" class="download-btn" type="button" disabled>
+                <span>下载</span><b>↓</b>
+              </button>
+            </div>
+          </div>
+
+          <div class="image-preview-shell">
+            <div id="skinUpscaleResultArea" class="image-preview-stage">
+              <div class="empty-state">
+                <div class="empty-mark">＋</div>
+                <strong>准备处理图片</strong>
+                <span>上传原图后即可开始高清放大。</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="image-control-panel skin-control-panel glass">
+        <div class="image-control-copy">
+          <span>GENERATION CONTROL</span>
+          <h2>操作区</h2>
+          <small>RunningHub AI App · 2050826078431793153</small>
+        </div>
+
+        <div class="image-fixed-field">
+          <span>处理模式</span>
+          <strong>真实皮肤高清放大</strong>
+        </div>
+
+        <div class="image-workflow-state">
+          <i></i>
+          <span>Node 46 · image</span>
+        </div>
+
+        <button id="skinUpscaleRunBtn" class="generate-btn image-generate-btn" type="button">
+          <span class="skin-upscale-generate-label">开始处理</span><b>↗</b>
         </button>
       </section>
     </div>
