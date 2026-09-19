@@ -734,7 +734,13 @@ function upsertHistory(appKey, task, extra={}) {
     batchIndex: Number(extra.batchIndex ?? previous.batchIndex ?? 0),
     batchTotal: Number(extra.batchTotal ?? previous.batchTotal ?? 0),
     clothesSeed: extra.clothesSeed ?? previous.clothesSeed ?? '',
-    performanceSeed: extra.performanceSeed ?? previous.performanceSeed ?? ''
+    performanceSeed: extra.performanceSeed ?? previous.performanceSeed ?? '',
+    personaSeed: extra.personaSeed ?? previous.personaSeed ?? '',
+    personaId: extra.personaId ?? previous.personaId ?? '',
+    personaName: extra.personaName ?? previous.personaName ?? '',
+    actionCount: Number(extra.actionCount ?? previous.actionCount ?? 0),
+    signatureCount: Number(extra.signatureCount ?? previous.signatureCount ?? 0),
+    arc: extra.arc ?? previous.arc ?? ''
   };
 
   saveHistory([next, ...items.filter(item => item.taskId !== taskId)]);
@@ -3071,8 +3077,14 @@ function autoBatchHistoryMeta(snapshot, index, promptResult) {
     batchId:autoBatchState.batchId,
     batchIndex:index,
     batchTotal:snapshot.total,
-    clothesSeed:promptResult.clothesSeed || '',
-    performanceSeed:promptResult.performanceSeed || ''
+    personaSeed:promptResult.personaSeed || '',
+    personaId:promptResult.personaId || '',
+    personaName:promptResult.personaName || '',
+    actionCount:Number(promptResult.actionCount || 0),
+    signatureCount:Number(promptResult.signatureCount || 0),
+    arc:promptResult.arc || '',
+    clothesSeed:promptResult.personaSeed || '',
+    performanceSeed:promptResult.personaSeed || ''
   };
 }
 
@@ -3092,8 +3104,11 @@ async function runAutoBatchItem(snapshot, uploadValues, index) {
   if (!generator?.generateRandom) throw new Error('提示词随机生成器未就绪');
 
   const promptResult = generator.generateRandom();
-  if (!promptResult.clothesSeed && !promptResult.performanceSeed) {
-    throw new Error('提示词模板中没有 {{clothes}} 或 {{performance}}，无法执行随机批量生成');
+  if (!promptResult.personaSeed || !promptResult.personaId) {
+    throw new Error('Persona 联动随机生成失败，无法执行批量任务');
+  }
+  if (!promptResult.action || !promptResult.performance || !promptResult.clothes) {
+    throw new Error('提示词模板需要 {{clothes}}、{{performance}}、{{action}} 三个联动变量');
   }
   const nodes = buildAutoBatchNodes(snapshot, promptResult.prompt, uploadValues);
   const meta = autoBatchHistoryMeta(snapshot, index, promptResult);
