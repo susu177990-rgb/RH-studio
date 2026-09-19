@@ -13,9 +13,9 @@ const APPS = {
   'image-2mp': {
     key: 'image-2mp',
     appId: '2086825499864018945',
-    name: '2MP 文生图',
+    name: '超强文生图V3.0 基础版',
     subtitle: '纯文本生成',
-    title: '2MP 文生图 · 纯文本生成',
+    title: '超强文生图V3.0 基础版',
     type: 'image'
   },
   'image-2mp-upscale': {
