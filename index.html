@@ -252,6 +252,17 @@
       <button id="clearHistory" class="history-clear" type="button">清空记录</button>
     </div>
 
+    <div class="history-import">
+      <div>
+        <strong>导入已有任务</strong>
+        <span>输入 RunningHub Task ID，查询真实状态并加入记录。</span>
+      </div>
+      <div class="history-import-row">
+        <input id="historyTaskInput" class="input" inputmode="numeric" placeholder="例如：2101220462590025729">
+        <button id="importHistoryTask" class="btn primary" type="button">导入</button>
+      </div>
+    </div>
+
     <div id="historyList" class="history-list">
       <div class="history-empty">
         <strong>还没有生成记录</strong>
