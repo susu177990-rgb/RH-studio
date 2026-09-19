@@ -563,10 +563,7 @@
   const variableText = $('#promptTemplateVariableText');
   const saveState = $('#promptTemplateSaveState');
 
-  const personaSeedInput = $('#personaSeedInput');
-  const useLastPersonaSeed = $('#useLastPersonaSeed');
   const lastPersonaName = $('#lastPersonaName');
-  const lastPersonaSeed = $('#lastPersonaSeed');
   const lastPersonaClothes = $('#lastPersonaClothes');
   const lastPersonaPerformance = $('#lastPersonaPerformance');
   const lastPersonaAction = $('#lastPersonaAction');
@@ -1126,7 +1123,6 @@
   function syncLastUI() {
     const last = lastBundle();
     if (lastPersonaName) lastPersonaName.textContent = last ? last.personaName : '尚未生成 Persona';
-    if (lastPersonaSeed) lastPersonaSeed.textContent = last ? ('SEED · ' + last.seed + ' · ' + last.personaId) : 'SEED · —';
     if (lastPersonaClothes) lastPersonaClothes.textContent = last?.clothes || '—';
     if (lastPersonaPerformance) lastPersonaPerformance.textContent = last?.performance || '—';
     if (lastPersonaAction) lastPersonaAction.textContent = last?.action || '—';
@@ -1161,12 +1157,6 @@
     syncLastUI();
     overlay.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-  }
-
-  function requestedSeed() {
-    const raw = personaSeedInput?.value.trim() || '';
-    if (!raw) return null;
-    return normalizeSeed(raw);
   }
 
   function finalPromptForBundle(template,bundle) {
@@ -1206,17 +1196,8 @@
     const target = $(targetId);
     if (!target) return;
 
-    const raw = personaSeedInput?.value.trim() || '';
-    const seed = requestedSeed();
-    if (raw && !seed) {
-      if (typeof toast === 'function') toast('Persona Seed 必须是正整数','bad');
-      openPromptSettings();
-      personaSeedInput?.focus();
-      return;
-    }
-
     try {
-      const result = generatePromptBundle(seed);
+      const result = generatePromptBundle(null);
       target.value = result.prompt;
       target.dispatchEvent(new Event('input',{bubbles:true}));
       target.dispatchEvent(new Event('change',{bubbles:true}));
@@ -1237,22 +1218,6 @@
   editor?.addEventListener('input',() => {
     localStorage.setItem(PROMPT_TEMPLATE_KEY,editor.value);
     syncTemplateMeta('saved');
-  });
-
-  personaSeedInput?.addEventListener('input',() => {
-    const raw = personaSeedInput.value.trim();
-    personaSeedInput.setCustomValidity(raw && !normalizeSeed(raw) ? 'Persona Seed 必须是正整数' : '');
-  });
-
-  useLastPersonaSeed?.addEventListener('click',() => {
-    const last = lastBundle();
-    if (!last?.seed) {
-      if (typeof toast === 'function') toast('还没有可复用的 Persona Seed');
-      return;
-    }
-    personaSeedInput.value = String(last.seed);
-    personaSeedInput.focus();
-    if (typeof toast === 'function') toast('已填入最近 Persona Seed');
   });
 
   window.addEventListener('storage',event => {
