@@ -1101,13 +1101,17 @@
   }
 
   function generateUniqueRandomBundle() {
-    const recent = new Set(readRecent().map(item => item?.signature).filter(Boolean));
+    const recentItems = readRecent();
+    const recent = new Set(recentItems.map(item => item?.signature).filter(Boolean));
+    const recentPersonaIds = new Set(recentItems.slice(0,2).map(item => item?.personaId).filter(Boolean));
     let fallback = null;
 
     for (let i=0;i<MAX_ATTEMPTS;i++) {
       const result = buildBundle(randomSeed());
       fallback = result;
-      if (!recent.has(result.signature)) return result;
+      if (recent.has(result.signature)) continue;
+      if (recentPersonaIds.has(result.personaId) && i < 48) continue;
+      return result;
     }
     return fallback || buildBundle(randomSeed());
   }
@@ -1175,12 +1179,22 @@
   }
 
   function generatePromptBundle(seed=null) {
+    const template = currentTemplate();
+    if (!template.trim()) throw new Error('提示词模板为空');
+
+    const required = [
+      [CLOTHES_PLACEHOLDER,'{{clothes}}'],
+      [PERFORMANCE_PLACEHOLDER,'{{performance}}'],
+      [ACTION_PLACEHOLDER,'{{action}}']
+    ];
+    const missing = required.filter(item => !template.includes(item[0])).map(item => item[1]);
+    if (missing.length) {
+      throw new Error('提示词模板缺少联动变量：' + missing.join('、'));
+    }
+
     const bundle = seed ? buildBundle(seed) : generateUniqueRandomBundle();
     rememberBundle(bundle);
     syncLastUI();
-
-    const template = currentTemplate();
-    if (!template.trim()) throw new Error('提示词模板为空');
 
     return {
       ...bundle,
