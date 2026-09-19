@@ -5,6 +5,10 @@
     {
       "source": "/rh-upload",
       "destination": "https://www.runninghub.ai/openapi/v2/media/upload/binary"
+    },
+    {
+      "source": "/rh-media/:path*",
+      "destination": "https://rh-images-1252422369.cos.ap-beijing.myqcloud.com/:path*"
     }
   ]
 }
