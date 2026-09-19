@@ -32,7 +32,81 @@ button{color:inherit}
 .brand-copy small{display:block;margin-top:4px;color:#665e56;font:700 8px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:1.45px}
 .section-label{padding:0 7px 10px;color:#70685f;font:800 8px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:1.4px}
 .sidebar>div:first-child{min-height:0;flex:1 1 auto;display:flex;flex-direction:column}
-.app-list{display:grid;gap:8px;min-height:0;overflow:auto;padding-right:2px;align-content:start;scrollbar-width:thin;scrollbar-color:rgba(255,179,92,.16) transparent}
+.app-filter{
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:4px;
+  margin:0 0 10px;
+  padding:3px;
+  border:1px solid rgba(255,255,255,.045);
+  border-radius:13px;
+  background:rgba(0,0,0,.18);
+}
+.app-filter-btn{
+  min-width:0;
+  height:30px;
+  border:1px solid transparent;
+  border-radius:9px;
+  background:transparent;
+  color:#6f675f;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  padding:0 5px;
+  cursor:pointer;
+  transition:.15s ease;
+  font-size:7.5px;
+  white-space:nowrap;
+}
+.app-filter-btn b{
+  min-width:13px;
+  height:13px;
+  padding:0 3px;
+  border-radius:5px;
+  display:grid;
+  place-items:center;
+  background:rgba(255,255,255,.035);
+  color:#5f5750;
+  font:800 6px ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+.app-filter-btn:hover{
+  color:#aaa096;
+  background:rgba(255,255,255,.025);
+}
+.app-filter-btn.active{
+  border-color:rgba(255,179,92,.16);
+  background:rgba(255,179,92,.075);
+  color:#d2b18d;
+}
+.app-filter-btn.active b{
+  background:rgba(255,179,92,.10);
+  color:var(--accent);
+}
+.app-list{display:grid;gap:8px;min-height:0;flex:1 1 auto;overflow:auto;padding-right:2px;align-content:start;scrollbar-width:thin;scrollbar-color:rgba(255,179,92,.16) transparent}
+.app-item.filter-hidden{display:none}
+.app-filter-empty{
+  min-height:110px;
+  border:1px dashed rgba(255,255,255,.055);
+  border-radius:17px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  color:#5d554e;
+  padding:16px;
+}
+.app-filter-empty strong{
+  font-size:9px;
+  color:#81776d;
+}
+.app-filter-empty span{
+  margin-top:6px;
+  font-size:7px;
+  color:#554e47;
+}
 .app-item{width:100%;min-height:78px;border:1px solid transparent;border-radius:19px;background:transparent;padding:12px;text-align:left;display:grid;grid-template-columns:42px 1fr auto;gap:11px;align-items:center;cursor:pointer}
 .app-item.active{border-color:rgba(255,179,92,.19);background:linear-gradient(145deg,rgba(255,179,92,.09),rgba(255,255,255,.025))}
 .app-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;border:1px solid rgba(255,179,92,.22);background:rgba(255,179,92,.08);color:var(--accent);font-size:11px;font-weight:850}
