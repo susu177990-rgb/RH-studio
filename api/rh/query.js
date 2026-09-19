@@ -38,6 +38,35 @@ export default {async fetch(request){
       },response.status);
     }
 
+    const appCode=result?.code;
+    const hasBusinessError=appCode!=null&&String(appCode)!=="0";
+    const status=String(result?.status||"").trim();
+
+    if(hasBusinessError||!status){
+      const message=
+        result?.errorMessage||
+        result?.message||
+        result?.msg||
+        (hasBusinessError
+          ? `RunningHub 返回业务错误 (${String(appCode)})`
+          : "RunningHub 查询响应缺少 status");
+
+      safeLog("[RH_QUERY_INVALID_RESPONSE]",{
+        taskId,
+        httpStatus:response.status,
+        code:appCode??"",
+        errorCode:result?.errorCode||"",
+        errorMessage:message,
+        status,
+        failedReason:result?.failedReason||null
+      });
+
+      return reply({
+        error:message,
+        raw:result
+      },502);
+    }
+
     if(result?.status==="FAILED"){
       safeLog("[RH_TASK_FAILED]",{
         taskId:result?.taskId||taskId,
