@@ -82,7 +82,8 @@ const LS = {
   multiFastAspect: 'rhstudio.multiFast.aspect',
   appFilter: 'rhstudio.appFilter',
   inst: 'rhstudio.instanceType',
-  history: 'rhstudio.generationHistory'
+  history: 'rhstudio.generationHistory',
+  runtimeTasks: 'rhstudio.runtimeTasks.v1'
 };
 
 const MEDIA = {
@@ -506,6 +507,150 @@ function saveHistory(items) {
   } catch {}
 }
 
+
+function getRuntimeTasks() {
+  try {
+    const value = JSON.parse(localStorage.getItem(LS.runtimeTasks) || '{}');
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+function compactRuntimeResults(results) {
+  if (!Array.isArray(results)) return [];
+  return results.slice(0, 20).map(item => ({
+    url:String(item?.url || ''),
+    outputType:String(item?.outputType || ''),
+    text:String(item?.text || '')
+  })).filter(item => item.url || item.text);
+}
+
+function saveRuntimeTask(appKey, task, extra={}) {
+  const taskId = String(task?.taskId || extra.taskId || '').trim();
+  if (!taskId || !APPS[appKey]) return;
+
+  const all = getRuntimeTasks();
+  const previous = all[appKey] || {};
+  const nextResults = compactRuntimeResults(task?.results);
+  const status = String(task?.status || extra.status || previous.status || 'RUNNING');
+
+  all[appKey] = {
+    taskId,
+    status,
+    results:nextResults.length ? nextResults : (Array.isArray(previous.results) ? previous.results : []),
+    errorCode:String(task?.errorCode || previous.errorCode || ''),
+    errorMessage:String(task?.errorMessage || previous.errorMessage || ''),
+    createdAt:Number(previous.createdAt || extra.createdAt || Date.now()),
+    updatedAt:Date.now()
+  };
+
+  try {
+    localStorage.setItem(LS.runtimeTasks, JSON.stringify(all));
+  } catch {}
+}
+
+function runtimeSnapshotFromHistory(appKey) {
+  const item = getHistory().find(entry => entry?.appKey === appKey && entry?.taskId);
+  if (!item) return null;
+
+  const result = item.resultUrl
+    ? [{url:item.resultUrl, outputType:item.outputType || '', text:''}]
+    : [];
+
+  return {
+    taskId:String(item.taskId || ''),
+    status:String(item.status || 'RUNNING'),
+    results:result,
+    errorCode:String(item.errorCode || ''),
+    errorMessage:String(item.errorMessage || ''),
+    createdAt:Number(item.createdAt || Date.now()),
+    updatedAt:Number(item.updatedAt || item.createdAt || Date.now())
+  };
+}
+
+function runtimeViews() {
+  return {
+    [APP_KEYS.video]: {
+      state:videoState,
+      renderLoading:renderVideoLoading,
+      renderSuccess:renderVideoSuccess,
+      renderFailed:renderVideoFailed,
+      query:queryVideoTask
+    },
+    [APP_KEYS.image]: {
+      state:imageState,
+      renderLoading:renderImageLoading,
+      renderSuccess:renderImageSuccess,
+      renderFailed:renderImageFailed,
+      query:queryImageTask
+    },
+    [APP_KEYS.whiteMarble]: {
+      state:whiteMarbleState,
+      renderLoading:renderWhiteMarbleLoading,
+      renderSuccess:renderWhiteMarbleSuccess,
+      renderFailed:renderWhiteMarbleFailed,
+      query:queryWhiteMarbleTask
+    },
+    [APP_KEYS.kq12Portrait]: {
+      state:kq12State,
+      renderLoading:renderKQ12Loading,
+      renderSuccess:renderKQ12Success,
+      renderFailed:renderKQ12Failed,
+      query:queryKQ12Task
+    },
+    [APP_KEYS.skinUpscale]: {
+      state:skinUpscaleState,
+      renderLoading:renderSkinUpscaleLoading,
+      renderSuccess:renderSkinUpscaleSuccess,
+      renderFailed:renderSkinUpscaleFailed,
+      query:querySkinUpscaleTask
+    },
+    [APP_KEYS.multiFast]: {
+      state:multiFastState,
+      renderLoading:renderMultiFastLoading,
+      renderSuccess:renderMultiFastSuccess,
+      renderFailed:renderMultiFastFailed,
+      query:queryMultiFastTask
+    }
+  };
+}
+
+function restoreRuntimeTasks(skipApp='') {
+  const saved = getRuntimeTasks();
+  const views = runtimeViews();
+
+  Object.entries(views).forEach(([appKey, view]) => {
+    if (appKey === skipApp) return;
+
+    const snapshot = saved[appKey] || runtimeSnapshotFromHistory(appKey);
+    if (!snapshot?.taskId) return;
+
+    view.state.task = snapshot;
+    const status = String(snapshot.status || 'RUNNING').toUpperCase();
+
+    if (status === 'SUCCESS') {
+      view.renderSuccess(snapshot);
+      if (!saved[appKey]) saveRuntimeTask(appKey, snapshot);
+      return;
+    }
+
+    if (status === 'FAILED') {
+      view.renderFailed(snapshot, snapshot.errorMessage || '生成失败');
+      if (!saved[appKey]) saveRuntimeTask(appKey, snapshot);
+      return;
+    }
+
+    view.renderLoading(status, snapshot.taskId);
+
+    if (!apiKey()) return;
+
+    clearInterval(view.state.poll);
+    view.state.poll = setInterval(() => view.query(snapshot.taskId), 3000);
+    view.query(snapshot.taskId);
+  });
+}
+
 function isVideo(item) {
   const type = String(item?.outputType || '').toLowerCase();
   const url = String(item?.url || '').toLowerCase();
@@ -548,6 +693,7 @@ function upsertHistory(appKey, task, extra={}) {
   };
 
   saveHistory([next, ...items.filter(item => item.taskId !== taskId)]);
+  saveRuntimeTask(appKey, task, extra);
 }
 
 function closeDrawers() {
@@ -2640,6 +2786,11 @@ const initialApp = APPS[requestedApp]
 
 setActiveApp(initialApp, false);
 renderAppFilter(state.appFilter, false, true);
+restoreRuntimeTasks(recoveryTaskId ? initialApp : '');
+
+window.addEventListener('pageshow', event => {
+  if (event.persisted) restoreRuntimeTasks('');
+});
 
 if (recoveryTaskId) {
   if (!apiKey()) {
