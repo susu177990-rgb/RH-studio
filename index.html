@@ -1085,7 +1085,7 @@
         <div class="prompt-template-meta">
           <div class="prompt-variable-state">
             <i id="promptTemplateVariableDot" class="prompt-variable-dot"></i>
-            <span id="promptTemplateVariableText">检测 {{clothes}}</span>
+            <span id="promptTemplateVariableText">检测 {{clothes}} / {{performance}}</span>
           </div>
           <span id="promptTemplateSaveState" class="prompt-template-save-state">使用网站内置模板</span>
         </div>
@@ -1393,19 +1393,19 @@
       id:'template_a',
       text:({base,toneText,intensity,camera}) =>
         '人物自然面对镜头，在原地附近自由变化身姿，整体状态' + base + '，带一点' + toneText + '。' +
-        intensity + '。由人物自由发挥，不规定具体动作。整体表现随性流畅，有真实的人体重心和惯性，不过度摆拍、不机械重复、不做夸张表演或舞蹈式动作，像' + camera + '的一段约15秒人物视频。'
+        intensity + '。由人物自由发挥，不规定具体动作。整体表现随性流畅，有真实的人体重心和惯性，不过度摆拍、不机械重复、不做夸张表演或舞蹈式动作，整体呈现' + camera + '的真实感，像一段自然记录的约15秒人物视频。'
     },
     {
       id:'template_b',
       text:({base,toneText,intensity,camera}) =>
         '人物始终自然面对镜头，轻松地在原地附近变化姿态，整体呈现' + base + '、' + toneText + '的状态。' +
-        intensity + '。表演过程由人物自由发挥，不要求任何具体动作，姿态变化保持连贯，具有自然的人体节奏和镜头感，不机械重复、不跳舞、不做夸张表演，整体像' + camera + '的一段真实约15秒自拍视频。'
+        intensity + '。表演过程由人物自由发挥，不要求任何具体动作，姿态变化保持连贯，具有自然的人体节奏和镜头感，不机械重复、不跳舞、不做夸张表演，整体呈现' + camera + '的真实感，像一段自然随意的约15秒自拍视频。'
     },
     {
       id:'template_c',
       text:({base,toneText,intensity,camera}) =>
         '人物在镜头前自然展示自己，状态' + base + '，带一点' + toneText + '。' +
-        intensity + '。身体姿态保持自然流动和持续变化，由人物自由发挥，不指定明确动作，整体克制、真实、连贯，不过度摆拍、不机械重复、不跳舞，像' + camera + '的一段日常人物自拍视频。'
+        intensity + '。身体姿态保持自然流动和持续变化，由人物自由发挥，不指定明确动作，整体克制、真实、连贯，不过度摆拍、不机械重复、不跳舞，整体带有' + camera + '的真实感，像一段日常人物自拍视频。'
     }
   ];
 
@@ -1796,12 +1796,13 @@
     return true;
   }
 
-  function choosePerformanceTones(rng, style) {
-    const primary = performanceWeightedPick(rng, PERFORMANCE_TONES, style);
+  function choosePerformanceTones(rng, style, baseState) {
+    const primaryPool = PERFORMANCE_TONES.filter(item => item.name !== baseState?.name);
+    const primary = performanceWeightedPick(rng, primaryPool, style);
     let secondary = null;
 
     if (rng() < .44) {
-      const candidates = PERFORMANCE_TONES.filter(item => item.id !== primary.id);
+      const candidates = PERFORMANCE_TONES.filter(item => item.id !== primary.id && item.name !== baseState?.name);
       for (let i = 0; i < 12; i++) {
         const picked = performanceWeightedPick(rng, candidates, style);
         if (performanceToneCompatible(primary, picked, rng)) {
@@ -1830,13 +1831,13 @@
     const rng = createRng(seed);
     const style = weightedPick(rng, PERFORMANCE_STYLES).id;
     const baseState = performanceWeightedPick(rng, PERFORMANCE_BASE_STATES, style);
-    const tones = choosePerformanceTones(rng, style);
+    const tones = choosePerformanceTones(rng, style, baseState);
     const intensity = choosePerformanceIntensity(rng, style, baseState);
     const camera = performanceWeightedPick(rng, PERFORMANCE_CAMERA_RELATIONS, style);
     const template = pick(rng, PERFORMANCE_TEMPLATES);
 
     if (intensity.id === 'restrained' && baseState.id === 'playful') return null;
-    if (intensity.id === 'slightly_active' && tones.primary.id === 'elegant') return null;
+    if (intensity.id === 'slightly_active' && [tones.primary.id,tones.secondary?.id].includes('elegant')) return null;
 
     const text = template.text({
       base:baseState.name,
