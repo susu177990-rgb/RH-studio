@@ -594,18 +594,40 @@ function generatedImageTag(url, className='') {
   const direct = String(url || '');
   const proxy = toMediaUrl(direct);
   const fallback = proxy && proxy !== direct ? proxy : '';
+  const classes = ['generated-image', className].filter(Boolean).join(' ');
 
   return '<img src="' + esc(direct) + '"' +
     (fallback ? ' data-fallback-src="' + esc(fallback) + '"' : '') +
     ' referrerpolicy="no-referrer"' +
-    (className ? ' class="' + esc(className) + '"' : '') +
+    ' class="' + esc(classes) + '"' +
     ' alt="generated image">';
+}
+
+function fitGeneratedImageToStage(img) {
+  const stage = img.closest('.image-preview-stage');
+  if (!stage || img.closest('.image-result-grid')) return;
+
+  const naturalWidth = Number(img.naturalWidth || 0);
+  const naturalHeight = Number(img.naturalHeight || 0);
+  const stageWidth = Number(stage.clientWidth || 0);
+  const stageHeight = Number(stage.clientHeight || 0);
+
+  if (!naturalWidth || !naturalHeight || !stageWidth || !stageHeight) return;
+
+  const scale = Math.min(stageWidth / naturalWidth, stageHeight / naturalHeight);
+  const width = Math.max(1, Math.floor(naturalWidth * scale));
+  const height = Math.max(1, Math.floor(naturalHeight * scale));
+
+  img.style.width = width + 'px';
+  img.style.height = height + 'px';
 }
 
 function bindGeneratedImageFallbacks(root) {
   if (!root) return;
 
-  root.querySelectorAll('img[data-fallback-src]').forEach(img => {
+  root.querySelectorAll('img.generated-image').forEach(img => {
+    img.addEventListener('load', () => fitGeneratedImageToStage(img));
+
     img.addEventListener('error', () => {
       if (!img.dataset.fallbackTried && img.dataset.fallbackSrc) {
         img.dataset.fallbackTried = '1';
@@ -614,11 +636,17 @@ function bindGeneratedImageFallbacks(root) {
       }
 
       img.closest('.image-result-grid')?.classList.add('has-load-error');
-      img.closest('.image-output-stage')?.classList.add('has-load-error');
+      img.closest('.image-preview-stage')?.classList.add('has-load-error');
       toast('图片已生成，但预览加载失败', 'bad');
     });
+
+    if (img.complete && img.naturalWidth) fitGeneratedImageToStage(img);
   });
 }
+
+window.addEventListener('resize', () => {
+  $('.image-preview-stage > img.generated-image').forEach(fitGeneratedImageToStage);
+});
 
 function parseMaybeJson(value) {
   if (value == null || value === '') return null;
