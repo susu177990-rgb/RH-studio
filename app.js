@@ -584,6 +584,68 @@ $$('.upload-slot').forEach(el => {
   });
 });
 
+function clearFaceT2IFile() {
+  if (faceT2IState.faceObjectUrl) {
+    URL.revokeObjectURL(faceT2IState.faceObjectUrl);
+    faceT2IState.faceObjectUrl = '';
+  }
+  faceT2IState.faceFile = null;
+  const input = $('#faceT2IFileInput');
+  if (input) input.value = '';
+  renderFaceT2IInput();
+}
+
+function setFaceT2IFile(file) {
+  if (!file) return;
+  if (file.size > MAX_RH_UPLOAD_BYTES) {
+    toast('人脸参考图不能超过 30MB','bad');
+    return;
+  }
+
+  if (faceT2IState.faceObjectUrl) {
+    URL.revokeObjectURL(faceT2IState.faceObjectUrl);
+  }
+
+  faceT2IState.faceFile = file;
+  faceT2IState.faceObjectUrl = URL.createObjectURL(file);
+  renderFaceT2IInput();
+}
+
+function renderFaceT2IInput() {
+  const preview = $('#faceT2IPreview');
+  const fileName = $('#faceT2IFileName');
+  const clear = $('#faceT2IClear');
+  if (!preview || !fileName || !clear) return;
+
+  const file = faceT2IState.faceFile;
+  if (file && faceT2IState.faceObjectUrl) {
+    preview.innerHTML = '<img src="' + esc(faceT2IState.faceObjectUrl) + '" alt="face reference">';
+    fileName.textContent = file.name;
+    clear.classList.remove('hidden');
+  } else {
+    preview.innerHTML = '<span>FACE</span><i>＋</i>';
+    fileName.textContent = '指定人脸参考图';
+    clear.classList.add('hidden');
+  }
+}
+
+$('#faceT2IUpload').addEventListener('click', e => {
+  if (e.target.closest('#faceT2IClear')) {
+    e.preventDefault();
+    e.stopPropagation();
+    clearFaceT2IFile();
+    return;
+  }
+  $('#faceT2IFileInput').click();
+});
+
+$('#faceT2IFileInput').addEventListener('click', e => e.stopPropagation());
+$('#faceT2IFileInput').addEventListener('change', e => {
+  e.stopPropagation();
+  const file = e.target.files?.[0];
+  if (file) setFaceT2IFile(file);
+});
+
 function extractUploadValue(data) {
   return (
     data?.data?.fileName ||
@@ -1839,6 +1901,232 @@ async function queryKQ12Task(taskId) {
   }
 }
 
+function setFaceT2IStatus(status, meta='') {
+  const names = {
+    IDLE:'等待生成',
+    UPLOADING:'上传人脸',
+    SUBMITTING:'提交任务',
+    QUEUED:'排队中',
+    RUNNING:'生成中',
+    SUCCESS:'生成完成',
+    FAILED:'生成失败'
+  };
+
+  statusClass($('#faceT2IStatusDot'), status);
+  $('#faceT2IStatusText').textContent = names[status] || status;
+  $('#faceT2ITaskMeta').textContent = meta || 'READY';
+}
+
+function setFaceT2IDownload(url='', type='') {
+  faceT2IState.outputSourceUrl = url || '';
+  faceT2IState.outputUrl = toMediaUrl(url || '');
+  faceT2IState.outputType = type || '';
+  $('#faceT2IDownloadBtn').disabled = !faceT2IState.outputUrl;
+}
+
+function renderFaceT2IIdle() {
+  setFaceT2IStatus('IDLE','READY');
+  setFaceT2IDownload();
+  $('#faceT2IResultArea').innerHTML =
+    '<div class="empty-state">' +
+      '<div class="empty-mark">＋</div>' +
+      '<strong>准备生成图片</strong>' +
+      '<span>上传人脸参考图并输入提示词后开始生成。</span>' +
+    '</div>';
+}
+
+function renderFaceT2ILoading(status, taskId) {
+  setFaceT2IStatus(status, taskId ? ('TASK · ' + taskId) : 'PROCESSING');
+  setFaceT2IDownload();
+  $('#faceT2IResultArea').innerHTML =
+    '<div class="loading-state">' +
+      '<div class="loading-mark"></div>' +
+      '<strong>' + (status === 'QUEUED' ? '任务正在排队' : status === 'UPLOADING' ? '正在上传人脸参考图' : '图片正在生成') + '</strong>' +
+      '<span>' + (status === 'UPLOADING' ? '上传完成后会自动提交任务。' : '状态每 3 秒自动刷新。') + '</span>' +
+    '</div>';
+}
+
+function renderFaceT2ISuccess(task) {
+  const results = Array.isArray(task?.results) ? task.results : [];
+  const images = results.filter(isImage);
+  const primary = images[0] || results[0];
+
+  setFaceT2IStatus('SUCCESS', task?.taskId ? ('TASK · ' + task.taskId) : 'DONE');
+
+  if (!primary) {
+    setFaceT2IDownload();
+    $('#faceT2IResultArea').innerHTML =
+      '<div class="empty-state"><div class="empty-mark">✓</div><strong>任务完成</strong><span>没有返回可预览图片。</span></div>';
+    return;
+  }
+
+  const url = primary.url || '';
+  const type = String(primary.outputType || 'png').toLowerCase();
+  setFaceT2IDownload(url, type);
+
+  if (images.length > 1) {
+    $('#faceT2IResultArea').innerHTML =
+      '<div class="image-result-grid">' +
+        images.map(item => generatedImageTag(item.url || '')).join('') +
+      '</div>';
+    bindGeneratedImageFallbacks($('#faceT2IResultArea'));
+  } else if (url) {
+    $('#faceT2IResultArea').innerHTML = generatedImageTag(url);
+    bindGeneratedImageFallbacks($('#faceT2IResultArea'));
+  } else if (primary.text) {
+    $('#faceT2IResultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
+  }
+}
+
+function renderFaceT2IFailed(task, message) {
+  setFaceT2IStatus('FAILED', task?.taskId ? ('TASK · ' + task.taskId) : 'ERROR');
+  setFaceT2IDownload();
+  $('#faceT2IResultArea').innerHTML = failureHtml(task, message);
+}
+
+function getFaceT2INodes(faceValue, prompt) {
+  return [
+    {
+      nodeId:'20',
+      fieldName:'image',
+      fieldValue:faceValue,
+      description:'Face (preferably a large proportion)'
+    },
+    {
+      nodeId:'13',
+      fieldName:'text',
+      fieldValue:prompt,
+      description:'Prompt (limit words use @ to separate)'
+    },
+    {
+      nodeId:'209',
+      fieldName:'value',
+      fieldValue:$('#faceT2IModelBranch').value || 'true',
+      description:'Model <Qwen / Krea2>'
+    },
+    {
+      nodeId:'84',
+      fieldName:'aspect_ratio',
+      fieldValue:$('#faceT2IAspectRatio').value || '9:16',
+      description:'Output scale'
+    },
+    {
+      nodeId:'206',
+      fieldName:'value',
+      fieldValue:$('#faceT2IHD').value || 'false',
+      description:'HD'
+    },
+    {
+      nodeId:'90',
+      fieldName:'value',
+      fieldValue:'false',
+      description:'Output method <Direct output or ZIP>'
+    }
+  ];
+}
+
+async function runFaceT2ITask() {
+  if (faceT2IState.running) return;
+
+  if (!apiKey()) {
+    toast('请先在设置中保存 RunningHub API Key','bad');
+    openSettings();
+    return;
+  }
+
+  const prompt = $('#faceT2IPromptInput').value.trim();
+  if (!faceT2IState.faceFile) {
+    toast('请先上传指定人脸参考图','bad');
+    return;
+  }
+  if (!prompt) {
+    toast('请输入图片提示词','bad');
+    $('#faceT2IPromptInput').focus();
+    return;
+  }
+
+  faceT2IState.running = true;
+  $('#faceT2IRunBtn').disabled = true;
+  $('.face-t2i-generate-label').textContent = '上传人脸…';
+  setFaceT2IDownload();
+  renderFaceT2ILoading('UPLOADING');
+
+  try {
+    const faceValue = await uploadFile(faceT2IState.faceFile, apiKey());
+
+    setFaceT2IStatus('SUBMITTING','RUNNINGHUB');
+    $('.face-t2i-generate-label').textContent = '提交任务…';
+
+    const data = await runRHApp(
+      APPS[APP_KEYS.faceT2I].appId,
+      getFaceT2INodes(faceValue, prompt)
+    );
+    faceT2IState.task = data;
+
+    const modelBranch = $('#faceT2IModelBranch').value || 'true';
+    const hd = $('#faceT2IHD').value === 'true';
+
+    upsertHistory(APP_KEYS.faceT2I, data, {
+      createdAt:Date.now(),
+      aspect:$('#faceT2IAspectRatio').value || '9:16',
+      quality:(hd ? 'HD' : 'Standard') + ' · branch ' + modelBranch,
+      duration:'',
+      instance:instanceLabel($('#instanceType').value),
+      prompt:prompt.slice(0,120)
+    });
+
+    toast('图片生成任务已提交','good');
+
+    if (data.status === 'SUCCESS') {
+      renderFaceT2ISuccess(data);
+    } else if (data.status === 'FAILED') {
+      renderFaceT2IFailed(data);
+    } else {
+      renderFaceT2ILoading(data.status || 'RUNNING', data.taskId);
+      if (data.taskId) {
+        clearInterval(faceT2IState.poll);
+        faceT2IState.poll = setInterval(() => queryFaceT2ITask(data.taskId), 3000);
+      }
+    }
+  } catch (error) {
+    renderFaceT2IFailed(faceT2IState.task, error?.message || '运行失败');
+    toast(error?.message || '运行失败','bad');
+  } finally {
+    faceT2IState.running = false;
+    $('#faceT2IRunBtn').disabled = false;
+    $('.face-t2i-generate-label').textContent = '开始生成';
+  }
+}
+
+async function queryFaceT2ITask(taskId) {
+  try {
+    const data = await queryRH(taskId);
+    faceT2IState.task = data;
+    const status = data.status || 'RUNNING';
+
+    upsertHistory(APP_KEYS.faceT2I, data, {taskId});
+
+    if (status === 'SUCCESS') {
+      clearInterval(faceT2IState.poll);
+      faceT2IState.poll = null;
+      renderFaceT2ISuccess(data);
+      toast('图片生成完成','good');
+    } else if (status === 'FAILED') {
+      clearInterval(faceT2IState.poll);
+      faceT2IState.poll = null;
+      renderFaceT2IFailed(data);
+      toast('图片生成失败','bad');
+    } else {
+      renderFaceT2ILoading(status, data.taskId || taskId);
+    }
+  } catch (error) {
+    clearInterval(faceT2IState.poll);
+    faceT2IState.poll = null;
+    renderFaceT2IFailed(faceT2IState.task, error?.message || '任务查询失败');
+    toast(error?.message || '任务查询失败','bad');
+  }
+}
+
 function triggerDownload(outputState, button, prefix) {
   if (!outputState.outputUrl) return;
 
@@ -1878,6 +2166,8 @@ $('#whiteMarbleRunBtn').onclick = runWhiteMarbleTask;
 $('#whiteMarbleDownloadBtn').onclick = () => triggerDownload(whiteMarbleState, $('#whiteMarbleDownloadBtn'), 'rh-studio-white-marble');
 $('#kq12RunBtn').onclick = runKQ12Task;
 $('#kq12DownloadBtn').onclick = () => triggerDownload(kq12State, $('#kq12DownloadBtn'), 'rh-studio-kq12');
+$('#faceT2IRunBtn').onclick = runFaceT2ITask;
+$('#faceT2IDownloadBtn').onclick = () => triggerDownload(faceT2IState, $('#faceT2IDownloadBtn'), 'rh-studio-face-t2i-v3');
 
 $('#toggleKey').onclick = () => {
   const input = $('#apiKeyInput');
@@ -1918,6 +2208,10 @@ $('#clearLocal').onclick = () => {
     LS.whiteMarbleHeight,
     LS.whiteMarbleSeed,
     LS.kq12Prompt,
+    LS.faceT2IPrompt,
+    LS.faceT2IModelBranch,
+    LS.faceT2IAspect,
+    LS.faceT2IHD,
     LS.inst
   ].forEach(k => localStorage.removeItem(k));
 
@@ -1928,6 +2222,8 @@ $('#clearLocal').onclick = () => {
   renderImageUpscaleIdle();
   renderWhiteMarbleIdle();
   renderKQ12Idle();
+  renderFaceT2IIdle();
+  clearFaceT2IFile();
   setActiveApp(APP_KEYS.video);
   toast('本地应用配置已重置');
 };
@@ -1940,6 +2236,8 @@ renderImageIdle();
 renderImageUpscaleIdle();
 renderWhiteMarbleIdle();
 renderKQ12Idle();
+renderFaceT2IIdle();
+renderFaceT2IInput();
 
 const params = new URLSearchParams(window.location.search);
 const requestedApp = params.get('app');
@@ -1965,6 +2263,9 @@ if (recoveryTaskId) {
   } else if (initialApp === APP_KEYS.kq12Portrait) {
     renderKQ12Loading('RUNNING', recoveryTaskId);
     queryKQ12Task(recoveryTaskId);
+  } else if (initialApp === APP_KEYS.faceT2I) {
+    renderFaceT2ILoading('RUNNING', recoveryTaskId);
+    queryFaceT2ITask(recoveryTaskId);
   } else {
     renderVideoLoading('RUNNING', recoveryTaskId);
     queryVideoTask(recoveryTaskId);
