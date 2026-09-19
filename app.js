@@ -741,4 +741,14 @@ $('#clearLocal').onclick = () => {
 loadConfig();
 updateKeyUI();
 Object.keys(MEDIA).forEach(renderFileSlot);
-renderIdle();
+
+const recoveryTaskId = new URLSearchParams(window.location.search).get('task');
+if (recoveryTaskId && apiKey()) {
+  renderLoading('RUNNING', recoveryTaskId);
+  queryTask(recoveryTaskId);
+} else {
+  renderIdle();
+  if (recoveryTaskId && !apiKey()) {
+    toast('请先在设置中保存 API Key，再打开任务恢复链接', 'bad');
+  }
+}
