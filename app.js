@@ -57,6 +57,14 @@ const APPS = {
     subtitle: 'Image Enhance',
     title: '去AI感真实皮肤高清放大',
     type: 'image'
+  },
+  'minimax-h3-multi-fast': {
+    key: 'minimax-h3-multi-fast',
+    appId: '2086022574387339266',
+    name: 'MinimaxH3多图生视频 (加速版)',
+    subtitle: '加速版',
+    title: 'MinimaxH3多图生视频 (加速版)',
+    type: 'video'
   }
 };
 
@@ -67,7 +75,8 @@ const APP_KEYS = {
   whiteMarble: 'krea2-white-marble',
   kq12Portrait: 'kq12-portrait',
   faceT2I: 'face-t2i-v3',
-  skinUpscale: 'skin-upscale'
+  skinUpscale: 'skin-upscale',
+  multiFast: 'minimax-h3-multi-fast'
 };
 
 const RH_UPLOAD_DIRECT = 'https://www.runninghub.ai/openapi/v2/media/upload/binary';
@@ -93,6 +102,8 @@ const LS = {
   faceT2IModelBranch: 'rhstudio.faceT2I.modelBranch',
   faceT2IAspect: 'rhstudio.faceT2I.aspect',
   faceT2IHD: 'rhstudio.faceT2I.hd',
+  multiFastPrompt: 'rhstudio.multiFast.prompt',
+  multiFastAspect: 'rhstudio.multiFast.aspect',
   appFilter: 'rhstudio.appFilter',
   inst: 'rhstudio.instanceType',
   history: 'rhstudio.generationHistory'
@@ -109,6 +120,18 @@ const MEDIA = {
   audio144: { nodeId:'144', fieldName:'audio', kind:'audio', label:'音频 1' },
   audio160: { nodeId:'160', fieldName:'audio', kind:'audio', label:'音频 2' },
   audio189: { nodeId:'189', fieldName:'audio', kind:'audio', label:'音频 3' }
+};
+
+const MULTI_FAST_MEDIA = {
+  mfastImg141: { nodeId:'141', fieldName:'image', kind:'image', label:'参考图 1', order:1 },
+  mfastImg142: { nodeId:'142', fieldName:'image', kind:'image', label:'参考图 2', order:2 },
+  mfastImg143: { nodeId:'143', fieldName:'image', kind:'image', label:'参考图 3', order:3 },
+  mfastImg161: { nodeId:'161', fieldName:'image', kind:'image', label:'参考图 4', order:4 },
+  mfastImg165: { nodeId:'165', fieldName:'image', kind:'image', label:'参考图 5', order:5 },
+  mfastImg166: { nodeId:'166', fieldName:'image', kind:'image', label:'参考图 6', order:6 },
+  mfastAudio144: { nodeId:'144', fieldName:'audio', kind:'audio', label:'音频 1' },
+  mfastAudio160: { nodeId:'160', fieldName:'audio', kind:'audio', label:'音频 2' },
+  mfastVideo164: { nodeId:'164', fieldName:'video', kind:'video', label:'参考视频', subtitle:'可选视频参考' }
 };
 
 const state = {
@@ -185,6 +208,15 @@ const skinUpscaleState = {
   inputObjectUrl: ''
 };
 
+const multiFastState = {
+  task: null,
+  poll: null,
+  running: false,
+  outputUrl: '',
+  outputSourceUrl: '',
+  outputType: ''
+};
+
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
 }[c]));
@@ -242,6 +274,7 @@ function setActiveApp(key, persist=true) {
   $('#workspaceKQ12').classList.toggle('hidden', key !== APP_KEYS.kq12Portrait);
   $('#workspaceFaceT2I').classList.toggle('hidden', key !== APP_KEYS.faceT2I);
   $('#workspaceSkinUpscale').classList.toggle('hidden', key !== APP_KEYS.skinUpscale);
+  $('#workspaceMultiFast').classList.toggle('hidden', key !== APP_KEYS.multiFast);
 
   const app = APPS[key];
   $('#currentAppTitle').textContent = app.title;
@@ -340,6 +373,11 @@ function persistFaceT2IConfig() {
   localStorage.setItem(LS.faceT2IHD, $('#faceT2IHD').value);
 }
 
+function persistMultiFastConfig() {
+  localStorage.setItem(LS.multiFastPrompt, $('#multiFastPromptInput').value);
+  localStorage.setItem(LS.multiFastAspect, $('#multiFastAspectRatio').value);
+}
+
 function loadConfig() {
   $('#promptInput').value = localStorage.getItem(LS.prompt) || '';
   $('#aspectRatio').value = localStorage.getItem(LS.aspect) || '9:16 (Portrait Widescreen)';
@@ -363,6 +401,8 @@ function loadConfig() {
   $('#faceT2IModelBranch').value = localStorage.getItem(LS.faceT2IModelBranch) || 'true';
   $('#faceT2IAspectRatio').value = localStorage.getItem(LS.faceT2IAspect) || '9:16';
   $('#faceT2IHD').value = localStorage.getItem(LS.faceT2IHD) || 'false';
+  $('#multiFastPromptInput').value = localStorage.getItem(LS.multiFastPrompt) || '';
+  $('#multiFastAspectRatio').value = localStorage.getItem(LS.multiFastAspect) || '9:16 (Portrait Widescreen)';
   state.appFilter = localStorage.getItem(LS.appFilter) || 'all';
   $('#instanceType').value = localStorage.getItem(LS.inst) || 'default';
 
@@ -373,6 +413,7 @@ function loadConfig() {
   updateWhiteMarblePromptCount();
   updateKQ12PromptCount();
   updateFaceT2IPromptCount();
+  updateMultiFastPromptCount();
 }
 
 function updateDurationUI() {
@@ -414,6 +455,10 @@ function updateKQ12PromptCount() {
 
 function updateFaceT2IPromptCount() {
   $('#faceT2IPromptCount').textContent = String($('#faceT2IPromptInput').value.length);
+}
+
+function updateMultiFastPromptCount() {
+  $('#multiFastPromptCount').textContent = String($('#multiFastPromptInput').value.length);
 }
 
 function aspectLabelFromDimensions(width, height) {
@@ -474,6 +519,15 @@ $('#kq12PromptInput').addEventListener('change', persistKQ12Config);
     if (id === 'faceT2IPromptInput') updateFaceT2IPromptCount();
   });
   el.addEventListener('change', persistFaceT2IConfig);
+});
+
+['multiFastPromptInput','multiFastAspectRatio'].forEach(id => {
+  const el = $('#' + id);
+  el.addEventListener('input', () => {
+    persistMultiFastConfig();
+    if (id === 'multiFastPromptInput') updateMultiFastPromptCount();
+  });
+  el.addEventListener('change', persistMultiFastConfig);
 });
 
 $('#instanceType').addEventListener('change', () => {
@@ -600,7 +654,8 @@ function setFile(slot, file) {
 }
 
 function renderFileSlot(slot) {
-  const config = MEDIA[slot];
+  const config = MEDIA[slot] || MULTI_FAST_MEDIA[slot];
+  if (!config) return;
   const file = state.files[slot];
   const el = $('.upload-slot[data-slot="' + slot + '"]');
   if (!el) return;
@@ -611,7 +666,7 @@ function renderFileSlot(slot) {
   if (config.kind === 'image') {
     const preview = el.querySelector('.media-preview');
     const caption = el.querySelector('.media-caption strong');
-    const index = ['img141','img142','img143','img161','img175','img176'].indexOf(slot) + 1;
+    const index = config.order || (['img141','img142','img143','img161','img175','img176'].indexOf(slot) + 1);
 
     if (file) {
       preview.innerHTML = '<img src="' + esc(state.objectUrls[slot]) + '" alt="">';
@@ -633,8 +688,8 @@ function renderFileSlot(slot) {
       subtitle.textContent = '已选择参考视频';
     } else {
       preview.innerHTML = '<span>VIDEO</span><i>＋</i>';
-      title.textContent = '参考视频';
-      subtitle.textContent = '支持上传本地视频作为结构 / 动作 / 镜头参考';
+      title.textContent = config.label || '参考视频';
+      subtitle.textContent = config.subtitle || '支持上传本地视频作为结构 / 动作 / 镜头参考';
     }
   }
 
@@ -1215,7 +1270,7 @@ async function runVideoTask() {
   setVideoDownload();
 
   try {
-    const selectedFiles = Object.entries(state.files);
+    const selectedFiles = Object.entries(state.files).filter(([slot]) => !!MEDIA[slot]);
     const uploadValues = {};
     let uploaded = 0;
 
