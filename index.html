@@ -59,83 +59,140 @@
     </header>
 
     <div class="workspace">
-      <section class="stage glass">
-        <div class="stage-head">
-          <div class="stage-title">
-            <div class="eyebrow">OUTPUT MONITOR</div>
-            <h1>视频预览</h1>
+      <div class="workspace-top">
+        <section class="asset-panel glass">
+          <div class="panel-head">
+            <div>
+              <span>REFERENCE INPUTS</span>
+              <h2>参考素材</h2>
+            </div>
+            <b>10 INPUTS</b>
           </div>
 
-          <div class="stage-meta">
-            <div class="status-cluster">
-              <i id="statusDot" class="status-dot"></i>
-              <div>
-                <strong id="statusText">等待生成</strong>
-                <span id="taskMeta">READY</span>
+          <div class="image-grid">
+            <button class="upload-slot image-slot" data-slot="img141" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>01</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 1</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="img142" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>02</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 2</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="img143" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>03</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 3</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="img161" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>04</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 4</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="img175" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>05</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 5</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="img176" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>06</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 6</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+          </div>
+
+          <button class="upload-slot video-reference" data-slot="video164" type="button">
+            <input type="file" accept="video/*" hidden>
+            <div class="video-reference-preview"><span>VIDEO</span><i>＋</i></div>
+            <div class="video-reference-copy">
+              <strong>参考视频</strong>
+              <small>支持上传本地视频作为结构 / 动作 / 镜头参考</small>
+            </div>
+            <em class="slot-clear hidden">×</em>
+          </button>
+
+          <div class="audio-grid">
+            <button class="upload-slot audio-slot" data-slot="audio144" type="button">
+              <input type="file" accept="audio/*" hidden>
+              <div class="audio-icon">A1</div>
+              <div><strong>音频 1</strong><small>AUDIO</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot audio-slot" data-slot="audio160" type="button">
+              <input type="file" accept="audio/*" hidden>
+              <div class="audio-icon">A2</div>
+              <div><strong>音频 2</strong><small>AUDIO</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot audio-slot" data-slot="audio189" type="button">
+              <input type="file" accept="audio/*" hidden>
+              <div class="audio-icon">A3</div>
+              <div><strong>音频 3</strong><small>AUDIO</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+          </div>
+        </section>
+
+        <section class="output-panel glass">
+          <div class="panel-head output-head">
+            <div>
+              <span>VIDEO OUTPUT</span>
+              <h2>视频结构预览</h2>
+            </div>
+            <div class="output-head-actions">
+              <div class="status-pill">
+                <i id="statusDot" class="status-dot"></i>
+                <div><strong id="statusText">等待生成</strong><span id="taskMeta">READY</span></div>
+              </div>
+              <div class="ratio-pill"><span>输出画幅</span><b id="ratioChip">9:16</b></div>
+            </div>
+          </div>
+
+          <div class="output-stage-wrap">
+            <div id="resultArea" class="output-stage">
+              <div class="empty-state">
+                <div class="empty-mark">▶</div>
+                <strong>准备生成你的下一段视频</strong>
+                <span>添加参考素材并输入提示词，生成结果会直接显示在这里。</span>
               </div>
             </div>
-            <div class="ratio-chip"><span>输出画幅</span><b id="ratioChip">9:16</b></div>
-          </div>
-        </div>
 
-        <div id="resultArea" class="stage-view">
-          <div class="empty-state">
-            <div class="empty-mark">▶</div>
-            <strong>准备生成你的下一段视频</strong>
-            <span>添加参考素材并输入提示词，生成结果会直接显示在这里。</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="control-deck glass">
-        <div class="reference-rail">
-          <div class="deck-label">
-            <div><strong>参考素材</strong><span>PRIMARY REFERENCES</span></div>
-            <button id="openMoreRefs" class="ghost-link" type="button">更多参考 +</button>
-          </div>
-
-          <div class="reference-grid">
-            <button class="media-slot" data-slot="img141" type="button">
-              <input type="file" accept="image/*" hidden>
-              <div class="slot-preview"><span>01</span><i>＋</i></div>
-              <div class="slot-copy"><strong>参考图 1</strong><small>IMAGE</small></div>
-              <b class="slot-clear hidden">×</b>
-            </button>
-
-            <button class="media-slot" data-slot="img142" type="button">
-              <input type="file" accept="image/*" hidden>
-              <div class="slot-preview"><span>02</span><i>＋</i></div>
-              <div class="slot-copy"><strong>参考图 2</strong><small>IMAGE</small></div>
-              <b class="slot-clear hidden">×</b>
-            </button>
-
-            <button class="media-slot" data-slot="img143" type="button">
-              <input type="file" accept="image/*" hidden>
-              <div class="slot-preview"><span>03</span><i>＋</i></div>
-              <div class="slot-copy"><strong>参考图 3</strong><small>IMAGE</small></div>
-              <b class="slot-clear hidden">×</b>
-            </button>
-
-            <button class="media-slot video-slot" data-slot="video164" type="button">
-              <input type="file" accept="video/*" hidden>
-              <div class="slot-preview"><span>V</span><i>＋</i></div>
-              <div class="slot-copy"><strong>参考视频</strong><small>VIDEO</small></div>
-              <b class="slot-clear hidden">×</b>
+            <button id="downloadBtn" class="download-btn" type="button" disabled>
+              <span>下载</span><b>↓</b>
             </button>
           </div>
-        </div>
+        </section>
+      </div>
 
-        <div class="prompt-zone">
-          <div class="deck-label">
-            <div><strong>提示词</strong><span>PROMPT</span></div>
-            <span id="promptCount" class="prompt-count">0</span>
+      <div class="workspace-bottom">
+        <section class="prompt-panel glass">
+          <div class="panel-head compact-head">
+            <div>
+              <span>PROMPT</span>
+              <h2>提示词</h2>
+            </div>
+            <b id="promptCount">0</b>
           </div>
-          <textarea id="promptInput" placeholder="描述视频内容、角色、动作、镜头、节奏、光线、风格与参考素材的使用方式……"></textarea>
-        </div>
+          <textarea id="promptInput" placeholder="描述视频内容、角色、动作、镜头、节奏、光线、风格，以及每个参考素材应该如何被使用……"></textarea>
+        </section>
 
-        <div class="quick-zone">
-          <div class="quick-top">
-            <label class="quick-field">
+        <section class="operation-panel glass">
+          <div class="panel-head compact-head">
+            <div>
+              <span>GENERATION CONTROL</span>
+              <h2>操作区</h2>
+            </div>
+          </div>
+
+          <div class="operation-grid">
+            <label class="operation-field">
               <span>画幅</span>
               <select id="aspectRatio">
                 <option value="1:1 (Square)">1:1</option>
@@ -149,32 +206,46 @@
               </select>
             </label>
 
+            <label class="operation-field">
+              <span>算力</span>
+              <select id="instanceType">
+                <option value="default">Default · 24G</option>
+                <option value="plus">Plus · 48G</option>
+                <option value="ultra">Ultra · 84G</option>
+              </select>
+            </label>
+
+            <label class="operation-field">
+              <span>队列</span>
+              <select id="personalQueue">
+                <option value="false">公共队列</option>
+                <option value="true">个人队列</option>
+              </select>
+            </label>
+
             <button id="openAdvanced" class="advanced-btn" type="button">
               <span>高级参数</span><b>···</b>
             </button>
           </div>
 
-          <div id="mappingState" class="workflow-state">
-            <i></i>
-            <span>已绑定 RunningHub 工作流</span>
+          <div class="operation-foot">
+            <div class="workflow-state"><i></i><span>已绑定 RunningHub 工作流</span></div>
+            <button id="runBtn" class="generate-btn" type="button">
+              <span class="generate-label">开始生成</span><b>↗</b>
+            </button>
           </div>
-
-          <button id="runBtn" class="generate-btn" type="button">
-            <span class="generate-label">开始生成</span>
-            <b>↗</b>
-          </button>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   </main>
 </div>
 
 <div id="settingsOverlay" class="drawer-overlay hidden">
-  <button class="drawer-backdrop" data-close="settings" aria-label="关闭设置"></button>
+  <button class="drawer-backdrop" data-close aria-label="关闭设置"></button>
   <aside class="drawer glass">
     <div class="drawer-head">
       <div><span>GLOBAL SETTINGS</span><h2>设置</h2></div>
-      <button class="drawer-close" data-close="settings" type="button">×</button>
+      <button class="drawer-close" data-close type="button">×</button>
     </div>
 
     <section class="drawer-section">
@@ -211,93 +282,18 @@
   </aside>
 </div>
 
-<div id="moreRefsOverlay" class="drawer-overlay hidden">
-  <button class="drawer-backdrop" data-close="moreRefs" aria-label="关闭更多参考"></button>
-  <aside class="drawer glass">
-    <div class="drawer-head">
-      <div><span>REFERENCE LIBRARY</span><h2>更多参考</h2></div>
-      <button class="drawer-close" data-close="moreRefs" type="button">×</button>
-    </div>
-
-    <div class="drawer-intro">这些输入对应当前工作流中的额外图片与音频节点。未使用时可以保持为空。</div>
-
-    <section class="extra-reference-list">
-      <button class="drawer-media" data-slot="audio144" type="button">
-        <input type="file" accept="audio/*" hidden>
-        <div class="drawer-media-icon">A1</div>
-        <div><strong>音频参考 1</strong><span>Node 144 · audio</span></div>
-        <b class="drawer-file-state">未选择</b>
-      </button>
-
-      <button class="drawer-media" data-slot="img161" type="button">
-        <input type="file" accept="image/*" hidden>
-        <div class="drawer-media-icon">I4</div>
-        <div><strong>额外图片 1</strong><span>Node 161 · image</span></div>
-        <b class="drawer-file-state">未选择</b>
-      </button>
-
-      <button class="drawer-media" data-slot="img175" type="button">
-        <input type="file" accept="image/*" hidden>
-        <div class="drawer-media-icon">I5</div>
-        <div><strong>额外图片 2</strong><span>Node 175 · image</span></div>
-        <b class="drawer-file-state">未选择</b>
-      </button>
-
-      <button class="drawer-media" data-slot="img176" type="button">
-        <input type="file" accept="image/*" hidden>
-        <div class="drawer-media-icon">I6</div>
-        <div><strong>额外图片 3</strong><span>Node 176 · image</span></div>
-        <b class="drawer-file-state">未选择</b>
-      </button>
-
-      <button class="drawer-media" data-slot="audio160" type="button">
-        <input type="file" accept="audio/*" hidden>
-        <div class="drawer-media-icon">A2</div>
-        <div><strong>音频参考 2</strong><span>Node 160 · audio</span></div>
-        <b class="drawer-file-state">未选择</b>
-      </button>
-
-      <button class="drawer-media" data-slot="audio189" type="button">
-        <input type="file" accept="audio/*" hidden>
-        <div class="drawer-media-icon">A3</div>
-        <div><strong>音频参考 3</strong><span>Node 189 · audio</span></div>
-        <b class="drawer-file-state">未选择</b>
-      </button>
-    </section>
-  </aside>
-</div>
-
 <div id="advancedOverlay" class="drawer-overlay hidden">
-  <button class="drawer-backdrop" data-close="advanced" aria-label="关闭高级参数"></button>
+  <button class="drawer-backdrop" data-close-advanced aria-label="关闭高级参数"></button>
   <aside class="drawer glass">
     <div class="drawer-head">
       <div><span>WORKFLOW CONTROLS</span><h2>高级参数</h2></div>
-      <button class="drawer-close" data-close="advanced" type="button">×</button>
+      <button class="drawer-close" data-close-advanced type="button">×</button>
     </div>
 
-    <div class="drawer-intro">以下名称按工作流节点编号展示，避免对未在 API 文档中说明含义的参数做错误命名。</div>
+    <div class="drawer-intro">这些参数直接对应当前 RunningHub 工作流节点。文档没有明确业务名称的节点继续保留编号，避免误导。</div>
 
     <section class="drawer-section">
-      <div class="drawer-title"><div><strong>运行资源</strong><span>RunningHub 实例与队列</span></div></div>
-      <div class="settings-grid two">
-        <label class="setting-field"><span>实例类型</span>
-          <select id="instanceType">
-            <option value="default">Default · 24G</option>
-            <option value="plus">Plus · 48G</option>
-            <option value="ultra">Ultra · 84G</option>
-          </select>
-        </label>
-        <label class="setting-field"><span>队列</span>
-          <select id="personalQueue">
-            <option value="false">公共队列</option>
-            <option value="true">个人队列</option>
-          </select>
-        </label>
-      </div>
-    </section>
-
-    <section class="drawer-section">
-      <div class="drawer-title"><div><strong>数值参数</strong><span>使用 API 示例中的默认值</span></div></div>
+      <div class="drawer-title"><div><strong>数值参数</strong><span>工作流默认值</span></div></div>
       <div class="settings-grid three">
         <label class="setting-field"><span>Node 186 · value</span><input id="param186" class="input" type="number" step="1" value="10"></label>
         <label class="setting-field"><span>Node 147 · value</span><input id="param147" class="input" type="number" step="0.1" value="0.4"></label>
