@@ -704,7 +704,7 @@ function renderMaterialLibrary() {
     );
   }).join('');
 
-  $('[data-material-upload]').forEach(button => {
+  document.querySelectorAll('[data-material-upload]').forEach(button => {
     button.addEventListener('click', () => {
       const id = button.dataset.materialUpload;
       const input = $('[data-material-input="' + id + '"]');
@@ -712,7 +712,7 @@ function renderMaterialLibrary() {
     });
   });
 
-  $('[data-material-input]').forEach(input => {
+  document.querySelectorAll('[data-material-input]').forEach(input => {
     input.addEventListener('change', async () => {
       const file = input.files?.[0];
       if (!file) return;
@@ -721,7 +721,7 @@ function renderMaterialLibrary() {
     });
   });
 
-  $('[data-material-delete]').forEach(button => {
+  document.querySelectorAll('[data-material-delete]').forEach(button => {
     button.addEventListener('click', async () => {
       if (button.disabled) return;
       await deletePersistentMaterial(button.dataset.materialDelete);
