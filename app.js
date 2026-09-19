@@ -201,6 +201,22 @@ const multiFastState = {
   outputType: ''
 };
 
+const autoBatchState = {
+  running:false,
+  stopRequested:false,
+  batchId:'',
+  appKey:'',
+  total:0,
+  concurrency:2,
+  submitted:0,
+  completed:0,
+  failed:0,
+  active:0,
+  nextIndex:1,
+  startedAt:0,
+  lastError:''
+};
+
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
 }[c]));
@@ -261,6 +277,7 @@ function setActiveApp(key, persist=true) {
   const app = APPS[key];
   $('#currentAppTitle').textContent = app.title;
   $('#settingsCurrentApp').textContent = app.title;
+  syncAutoGenerateAvailability();
 
   requestAnimationFrame(() => {
     const activeWorkspace = $('.app-workspace:not(.hidden)');
@@ -711,11 +728,16 @@ function upsertHistory(appKey, task, extra={}) {
     resultUrl: primary?.url || previous.resultUrl || '',
     outputType: primary?.outputType || previous.outputType || '',
     errorCode: task?.errorCode || previous.errorCode || '',
-    errorMessage: task?.errorMessage || previous.errorMessage || ''
+    errorMessage: task?.errorMessage || previous.errorMessage || '',
+    batchId: extra.batchId ?? previous.batchId ?? '',
+    batchIndex: Number(extra.batchIndex ?? previous.batchIndex ?? 0),
+    batchTotal: Number(extra.batchTotal ?? previous.batchTotal ?? 0),
+    clothesSeed: extra.clothesSeed ?? previous.clothesSeed ?? '',
+    performanceSeed: extra.performanceSeed ?? previous.performanceSeed ?? ''
   };
 
   saveHistory([next, ...items.filter(item => item.taskId !== taskId)]);
-  saveRuntimeTask(appKey, task, extra);
+  if (!next.batchId) saveRuntimeTask(appKey, task, extra);
 }
 
 function closeDrawers() {
@@ -735,6 +757,44 @@ function openHistory() {
   window.location.href = '/history';
 }
 
+function isVideoAppKey(appKey) {
+  return appKey === APP_KEYS.video || appKey === APP_KEYS.multiFast;
+}
+
+function currentBatchMediaMap(appKey) {
+  return appKey === APP_KEYS.multiFast ? MULTI_FAST_MEDIA : MEDIA;
+}
+
+function currentBatchMaterialCount(appKey=state.activeApp) {
+  if (!isVideoAppKey(appKey)) return 0;
+  const mediaMap = currentBatchMediaMap(appKey);
+  return Object.keys(state.files).filter(slot => mediaMap[slot] && state.files[slot]).length;
+}
+
+function syncAutoGenerateAvailability() {
+  const button = $('#openAutoGenerate');
+  const start = $('#startAutoGenerate');
+  const appLabel = $('#autoGenerateApp');
+  const materialLabel = $('#autoGenerateMaterials');
+  if (!button || !start) return;
+
+  const isVideo = isVideoAppKey(state.activeApp);
+  button.disabled = false;
+  button.classList.toggle('is-running', autoBatchState.running);
+
+  if (appLabel) appLabel.textContent = isVideo ? APPS[state.activeApp].title : '当前应用不支持批量视频';
+  if (materialLabel) materialLabel.textContent = currentBatchMaterialCount() + ' 个';
+  start.disabled = autoBatchState.running || !isVideo;
+}
+
+function openAutoGenerate() {
+  closeDrawers();
+  syncAutoGenerateAvailability();
+  $('#autoGenerateOverlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+$('#openAutoGenerate').onclick = openAutoGenerate;
 $('#openSettings').onclick = openSettings;
 $('#openHistory').onclick = openHistory;
 $('#openMaterialSettings').onclick = openMaterialSettings;
@@ -1113,6 +1173,8 @@ function renderFileSlot(slot) {
     title.textContent = file ? file.name : config.label;
     small.textContent = file ? '已选择' : 'AUDIO';
   }
+
+  syncAutoGenerateAvailability();
 }
 
 $$('.upload-slot').forEach(el => {
@@ -1299,7 +1361,7 @@ async function uploadFile(file, key) {
   }
 }
 
-async function runRHApp(appId, nodeInfoList) {
+async function runRHApp(appId, nodeInfoList, options={}) {
   const res = await fetch('/api/rh/run', {
     method:'POST',
     headers:{
@@ -1309,7 +1371,7 @@ async function runRHApp(appId, nodeInfoList) {
     body:JSON.stringify({
       appId,
       nodeInfoList,
-      instanceType:$('#instanceType').value || 'default',
+      instanceType:options.instanceType || $('#instanceType').value || 'default',
       usePersonalQueue:'false'
     })
   });
@@ -2730,6 +2792,322 @@ async function queryMultiFastTask(taskId) {
   }
 }
 
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function autoBatchHasManualVideoTask() {
+  const states = [videoState, multiFastState];
+  return states.some(item => {
+    const status = String(item?.task?.status || '').toUpperCase();
+    return item?.running || !!item?.poll || (!!item?.task?.taskId && !['SUCCESS','FAILED'].includes(status));
+  });
+}
+
+function setAutoBatchControlsLocked(locked) {
+  if ($('#runBtn')) $('#runBtn').disabled = !!locked;
+  if ($('#multiFastRunBtn')) $('#multiFastRunBtn').disabled = !!locked;
+  if ($('#startAutoGenerate')) $('#startAutoGenerate').disabled = !!locked || !isVideoAppKey(state.activeApp);
+  if ($('#stopAutoGenerate')) $('#stopAutoGenerate').disabled = !locked;
+  $('#openAutoGenerate')?.classList.toggle('is-running', !!locked);
+}
+
+function updateAutoBatchProgress(statusText='', detail='') {
+  const finished = autoBatchState.completed + autoBatchState.failed;
+  const total = autoBatchState.total || 0;
+  const pct = total > 0 ? Math.min(100, Math.max(0, finished / total * 100)) : 0;
+
+  if ($('#autoGenerateStatus')) $('#autoGenerateStatus').textContent = statusText || (autoBatchState.running ? '批量生成中' : '等待开始');
+  if ($('#autoGenerateCounter')) $('#autoGenerateCounter').textContent = finished + ' / ' + total;
+  if ($('#autoGenerateProgressBar')) $('#autoGenerateProgressBar').style.width = pct + '%';
+
+  const parts = [];
+  if (autoBatchState.running) {
+    parts.push('运行 ' + autoBatchState.active);
+    parts.push('已提交 ' + autoBatchState.submitted);
+    parts.push('成功 ' + autoBatchState.completed);
+    parts.push('失败 ' + autoBatchState.failed);
+  }
+  if (detail) parts.push(detail);
+  if ($('#autoGenerateDetail')) {
+    $('#autoGenerateDetail').textContent = parts.join(' · ') || '仅支持当前选中的视频应用。批量运行时请保持工作台页面打开。';
+  }
+
+  syncAutoGenerateAvailability();
+}
+
+function createBatchId() {
+  return 'batch-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+function snapshotAutoBatchConfig(total, concurrency) {
+  const appKey = state.activeApp;
+  if (!isVideoAppKey(appKey)) throw new Error('自动生成仅支持视频应用');
+
+  const mediaMap = currentBatchMediaMap(appKey);
+  const files = Object.entries(state.files)
+    .filter(([slot,file]) => !!mediaMap[slot] && !!file)
+    .map(([slot,file]) => ({slot,file}));
+
+  const snapshot = {
+    appKey,
+    appId:APPS[appKey].appId,
+    appName:APPS[appKey].name,
+    instanceType:$('#instanceType').value || 'default',
+    mediaMap,
+    files,
+    total,
+    concurrency
+  };
+
+  if (appKey === APP_KEYS.video) {
+    snapshot.aspect = $('#aspectRatio').value;
+    snapshot.quality = $('#qualityPreset').value;
+    snapshot.duration = $('#durationRange').value;
+  } else {
+    snapshot.aspect = $('#multiFastAspectRatio').value;
+  }
+
+  return snapshot;
+}
+
+async function uploadAutoBatchMaterials(snapshot) {
+  const uploadValues = {};
+  if (!snapshot.files.length) return uploadValues;
+
+  let done = 0;
+  updateAutoBatchProgress('上传批量素材', '0 / ' + snapshot.files.length);
+
+  for (const item of snapshot.files) {
+    if (autoBatchState.stopRequested) throw new Error('批量任务已停止');
+    uploadValues[item.slot] = await uploadFile(item.file, apiKey());
+    done++;
+    updateAutoBatchProgress('上传批量素材', done + ' / ' + snapshot.files.length);
+  }
+
+  return uploadValues;
+}
+
+function buildAutoBatchNodes(snapshot, prompt, uploadValues) {
+  const nodes = [
+    {nodeId:'150',fieldName:'value',fieldValue:prompt,description:null},
+    {nodeId:'115',fieldName:'aspect_ratio',fieldValue:snapshot.aspect,description:null}
+  ];
+
+  if (snapshot.appKey === APP_KEYS.video) {
+    nodes.push(
+      {nodeId:'171',fieldName:'value',fieldValue:'false',description:null},
+      {nodeId:'163',fieldName:'value',fieldValue:'false',description:null},
+      {nodeId:'185',fieldName:'value',fieldValue:'false',description:null},
+      {nodeId:'186',fieldName:'value',fieldValue:String(snapshot.duration || '10'),description:null},
+      {nodeId:'147',fieldName:'value',fieldValue:String(snapshot.quality || '0.9'),description:null},
+      {nodeId:'192',fieldName:'value',fieldValue:'8',description:null},
+      {nodeId:'159',fieldName:'lora_name',fieldValue:'MysticXXX_MMH3-V1.safetensors',description:null},
+      {nodeId:'159',fieldName:'strength_model',fieldValue:'0.4',description:null},
+      {nodeId:'169',fieldName:'value',fieldValue:'false',description:null},
+      {nodeId:'158',fieldName:'value',fieldValue:'false',description:null}
+    );
+  } else {
+    nodes.push(...getMultiFastFixedNodes());
+  }
+
+  for (const [slot,config] of Object.entries(snapshot.mediaMap)) {
+    nodes.push({
+      nodeId:config.nodeId,
+      fieldName:config.fieldName,
+      fieldValue:uploadValues[slot] || 'None',
+      description:null
+    });
+  }
+
+  return nodes;
+}
+
+function autoBatchHistoryMeta(snapshot, index, promptResult) {
+  return {
+    createdAt:Date.now(),
+    aspect:(snapshot.aspect || '').split(' ')[0],
+    quality:snapshot.appKey === APP_KEYS.video ? qualityLabel(snapshot.quality) : '加速版 · V2',
+    duration:snapshot.appKey === APP_KEYS.video ? String(snapshot.duration || '10') + 's' : '',
+    instance:instanceLabel(snapshot.instanceType),
+    prompt:String(promptResult.prompt || '').slice(0,120),
+    batchId:autoBatchState.batchId,
+    batchIndex:index,
+    batchTotal:snapshot.total,
+    clothesSeed:promptResult.clothesSeed || '',
+    performanceSeed:promptResult.performanceSeed || ''
+  };
+}
+
+async function waitForAutoBatchTask(snapshot, taskId, meta) {
+  while (true) {
+    await sleep(3000);
+    const data = await queryRH(taskId);
+    upsertHistory(snapshot.appKey, data, meta);
+
+    const status = String(data.status || '').toUpperCase();
+    if (status === 'SUCCESS' || status === 'FAILED') return data;
+  }
+}
+
+async function runAutoBatchItem(snapshot, uploadValues, index) {
+  const generator = window.RHPromptGenerator;
+  if (!generator?.generateRandom) throw new Error('提示词随机生成器未就绪');
+
+  const promptResult = generator.generateRandom();
+  const nodes = buildAutoBatchNodes(snapshot, promptResult.prompt, uploadValues);
+  const meta = autoBatchHistoryMeta(snapshot, index, promptResult);
+
+  const data = await runRHApp(snapshot.appId, nodes, {instanceType:snapshot.instanceType});
+  autoBatchState.submitted++;
+  upsertHistory(snapshot.appKey, data, meta);
+  updateAutoBatchProgress('批量生成中', '第 ' + index + ' 条已提交');
+
+  const status = String(data.status || '').toUpperCase();
+  if (status === 'SUCCESS' || status === 'FAILED') return data;
+  return waitForAutoBatchTask(snapshot, data.taskId, meta);
+}
+
+async function autoBatchWorker(snapshot, uploadValues) {
+  while (!autoBatchState.stopRequested) {
+    const index = autoBatchState.nextIndex++;
+    if (index > snapshot.total) return;
+
+    autoBatchState.active++;
+    updateAutoBatchProgress('批量生成中', '处理第 ' + index + ' 条');
+
+    try {
+      const result = await runAutoBatchItem(snapshot, uploadValues, index);
+      if (String(result.status || '').toUpperCase() === 'SUCCESS') {
+        autoBatchState.completed++;
+      } else {
+        autoBatchState.failed++;
+      }
+    } catch (error) {
+      autoBatchState.failed++;
+      autoBatchState.lastError = error?.message || '批量任务失败';
+
+      // A submit/query infrastructure failure can make concurrency accounting unreliable.
+      // Stop adding new tasks, but let already-created workers finish naturally.
+      autoBatchState.stopRequested = true;
+    } finally {
+      autoBatchState.active--;
+      updateAutoBatchProgress(
+        autoBatchState.stopRequested ? '正在停止' : '批量生成中',
+        autoBatchState.lastError || ''
+      );
+    }
+  }
+}
+
+async function startAutoGenerate() {
+  if (autoBatchState.running) return;
+
+  if (!apiKey()) {
+    toast('请先在设置中保存 RunningHub API Key','bad');
+    openSettings();
+    return;
+  }
+
+  if (!isVideoAppKey(state.activeApp)) {
+    toast('自动生成仅支持视频应用','bad');
+    return;
+  }
+
+  if (autoBatchHasManualVideoTask()) {
+    toast('当前还有单条视频任务在运行，请完成后再启动批量生成','bad');
+    return;
+  }
+
+  const total = Math.trunc(Number($('#autoGenerateTotal').value));
+  const concurrency = Math.trunc(Number($('#autoGenerateConcurrency').value));
+
+  if (!Number.isFinite(total) || total < 1) {
+    toast('总生成数量必须是大于 0 的整数','bad');
+    $('#autoGenerateTotal').focus();
+    return;
+  }
+
+  if (![1,2].includes(concurrency)) {
+    toast('并发数量只能设置为 1 或 2','bad');
+    return;
+  }
+
+  if (!window.RHPromptGenerator?.generateRandom) {
+    toast('提示词随机生成器尚未加载','bad');
+    return;
+  }
+
+  const snapshot = snapshotAutoBatchConfig(total, concurrency);
+
+  autoBatchState.running = true;
+  autoBatchState.stopRequested = false;
+  autoBatchState.batchId = createBatchId();
+  autoBatchState.appKey = snapshot.appKey;
+  autoBatchState.total = total;
+  autoBatchState.concurrency = concurrency;
+  autoBatchState.submitted = 0;
+  autoBatchState.completed = 0;
+  autoBatchState.failed = 0;
+  autoBatchState.active = 0;
+  autoBatchState.nextIndex = 1;
+  autoBatchState.startedAt = Date.now();
+  autoBatchState.lastError = '';
+
+  setAutoBatchControlsLocked(true);
+  updateAutoBatchProgress('准备批量生成', '冻结当前素材与参数');
+
+  try {
+    const uploadValues = await uploadAutoBatchMaterials(snapshot);
+    if (autoBatchState.stopRequested) throw new Error('批量任务已停止');
+
+    const workers = Array.from(
+      {length:Math.min(concurrency, total)},
+      () => autoBatchWorker(snapshot, uploadValues)
+    );
+    await Promise.all(workers);
+  } catch (error) {
+    autoBatchState.lastError = error?.message || '批量生成失败';
+  } finally {
+    const finished = autoBatchState.completed + autoBatchState.failed;
+    const stopped = autoBatchState.stopRequested && finished < total;
+
+    autoBatchState.running = false;
+    setAutoBatchControlsLocked(false);
+    updateAutoBatchProgress(
+      stopped ? '批量已停止' : (autoBatchState.failed ? '批量完成 · 有失败' : '批量完成'),
+      autoBatchState.lastError || ('批次 ' + autoBatchState.batchId)
+    );
+
+    if (stopped) {
+      toast('已停止新增任务，已提交的任务已处理完');
+    } else if (autoBatchState.failed) {
+      toast('批量生成结束，存在失败任务','bad');
+    } else {
+      toast('批量生成完成','good');
+    }
+  }
+}
+
+function stopAutoGenerate() {
+  if (!autoBatchState.running) return;
+  autoBatchState.stopRequested = true;
+  $('#stopAutoGenerate').disabled = true;
+  updateAutoBatchProgress('正在停止', '不会再提交新任务，已提交任务继续完成');
+}
+
+$('#startAutoGenerate').onclick = startAutoGenerate;
+$('#stopAutoGenerate').onclick = stopAutoGenerate;
+$('#autoGenerateTotal').addEventListener('input', syncAutoGenerateAvailability);
+$('#autoGenerateConcurrency').addEventListener('change', syncAutoGenerateAvailability);
+
+window.addEventListener('beforeunload', event => {
+  if (!autoBatchState.running) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
+
 function triggerDownload(outputState, button, prefix) {
   if (!outputState.outputUrl) return;
 
@@ -2843,6 +3221,8 @@ renderKQ12Idle();
 renderSkinUpscaleIdle();
 renderSkinUpscaleInput();
 renderMultiFastIdle();
+syncAutoGenerateAvailability();
+updateAutoBatchProgress();
 
 const params = new URLSearchParams(window.location.search);
 const requestedApp = params.get('app');
