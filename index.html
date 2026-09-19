@@ -1418,7 +1418,13 @@
     if (pieces.bottom) baseScore += pieces.bottom.score || 0;
     if (length) baseScore += length.score || 0;
 
-    if (baseScore > 4) return null;
+    const baseSexyFeatureCount = [
+      pieces.dress,
+      pieces.top,
+      pieces.bottom
+    ].filter(piece => (piece?.score || 0) > 0).length + ((length?.score || 0) > 0 ? 1 : 0);
+
+    if (baseScore > 4 || baseSexyFeatureCount > 2) return null;
 
     const materialPieces = [pieces.dress, pieces.top, pieces.bottom].filter(Boolean);
     const material = chooseSharedOrCompatibleMaterial(rng, materialPieces);
@@ -1431,6 +1437,7 @@
       length
     };
     const sexy = chooseSexyExtras(rng, ctx, baseScore);
+    const sexyFeatureCount = baseSexyFeatureCount + sexy.items.length;
     const detail = chooseDetail(rng, type);
 
     let text = '';
@@ -1474,7 +1481,7 @@
 
     const bothFitted = !!(pieces.top?.fitted && pieces.bottom?.fitted);
     let aestheticScore = 100;
-    if (sexy.items.length > 2) aestheticScore -= 30;
+    if (sexyFeatureCount > 2) aestheticScore -= 30;
     if (sexy.score > 4) aestheticScore -= 40;
     if (!material.compatible) aestheticScore -= 30;
     if (palette.length > 3) aestheticScore -= 20;
@@ -1491,6 +1498,7 @@
       text,
       signature,
       sexyScore:sexy.score,
+      sexyFeatureCount,
       aestheticScore,
       materialIds:material.ids,
       pieceIds,
