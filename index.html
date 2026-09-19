@@ -138,6 +138,55 @@
   .material-library-grid{grid-template-columns:1fr}
   .material-settings-drawer{right:8px;top:8px;bottom:8px;width:calc(100vw - 16px)}
 }
+
+.auto-generate-btn.is-running{
+  border-color:rgba(255,179,92,.34);background:rgba(255,179,92,.08);color:#e0bb90
+}
+.auto-generate-btn:disabled{opacity:.38;cursor:not-allowed}
+.auto-generation-drawer{width:min(620px,calc(100vw - 32px));display:flex;flex-direction:column;overflow:auto}
+.auto-generation-note{
+  margin:0 0 14px;padding:11px 12px;border:1px solid var(--line);border-radius:14px;
+  background:rgba(255,255,255,.018);color:#746b62;font-size:7.5px;line-height:1.65
+}
+.auto-generation-note strong{color:#c09d75}
+.auto-generation-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.auto-generation-field>span{
+  display:block;margin:0 0 6px 2px;color:#776f66;font-size:7px
+}
+.auto-generation-field input,.auto-generation-field select{
+  width:100%;height:40px;border:1px solid var(--line);border-radius:12px;
+  background:rgba(0,0,0,.24);color:#ded7ce;padding:0 11px;outline:none
+}
+.auto-generation-summary{
+  margin-top:12px;padding:11px 12px;border:1px solid var(--line);border-radius:14px;
+  background:rgba(0,0,0,.18);display:grid;gap:7px
+}
+.auto-generation-summary>div{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.auto-generation-summary span{color:#6c645c;font-size:7px}
+.auto-generation-summary strong{color:#bdb3a9;font-size:8px;font-weight:650;text-align:right}
+.auto-generation-progress{
+  margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.018)
+}
+.auto-generation-progress-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.auto-generation-progress-head strong{font-size:9px;color:#bcb2a8}
+.auto-generation-progress-head span{color:#746b62;font:800 6.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+.auto-generation-track{height:5px;margin-top:10px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden}
+.auto-generation-track i{display:block;width:0;height:100%;background:var(--accent);border-radius:999px;transition:width .2s ease}
+.auto-generation-progress small{display:block;margin-top:8px;color:#625a52;font-size:7px;line-height:1.5}
+.auto-generation-actions{display:grid;grid-template-columns:1fr auto;gap:9px;margin-top:14px}
+.auto-generation-actions .generate-btn{height:44px}
+.auto-stop-btn{
+  min-width:94px;height:44px;border:1px solid var(--line2);border-radius:14px;
+  background:rgba(255,255,255,.025);color:#9d9288;cursor:pointer;font-size:8px
+}
+.auto-stop-btn:disabled{opacity:.3;cursor:not-allowed}
+@media(max-width:620px){
+  .auto-generation-grid{grid-template-columns:1fr}
+  .auto-generation-drawer{right:8px;top:8px;bottom:8px;width:calc(100vw - 16px)}
+  .auto-generation-actions{grid-template-columns:1fr}
+  .auto-stop-btn{width:100%}
+}
+
 @media(max-width:620px){
   .material-quick-btn{width:30px;padding:0;justify-content:center}
   .material-quick-btn span{display:none}
@@ -256,6 +305,9 @@
       </div>
       <div class="top-actions">
         <div class="live-pill"><i></i><span>ONLINE</span></div>
+        <button id="openAutoGenerate" class="settings-btn auto-generate-btn" type="button">
+          <span>自动生成</span><b>⇉</b>
+        </button>
         <button id="openHistory" class="history-btn" type="button">
           <span>生成记录</span><b>↺</b>
         </button>
@@ -989,6 +1041,67 @@
 </div>
 
 
+<div id="autoGenerateOverlay" class="drawer-overlay hidden">
+  <button class="drawer-backdrop" data-close aria-label="关闭自动生成"></button>
+  <aside class="drawer glass auto-generation-drawer">
+    <div class="drawer-head">
+      <div><span>AUTO GENERATION</span><h2>自动生成</h2></div>
+      <button class="drawer-close" data-close type="button">×</button>
+    </div>
+
+    <section class="drawer-section compact">
+      <div class="drawer-title">
+        <div>
+          <strong>批量视频生成</strong>
+          <span>使用开始时当前应用、当前素材与当前生成参数。每条视频独立随机生成一次提示词。</span>
+        </div>
+        <b>MAX 2</b>
+      </div>
+
+      <div class="auto-generation-note">
+        <strong>执行规则：</strong>当前填入素材只上传一次并供本批次复用；每个任务都会重新随机 <code>{{clothes}}</code> 与 <code>{{performance}}</code>。并发最多 2 条，完成后自动补下一条。
+      </div>
+
+      <div class="auto-generation-grid">
+        <label class="auto-generation-field">
+          <span>总生成数量</span>
+          <input id="autoGenerateTotal" type="number" min="1" step="1" value="4" inputmode="numeric">
+        </label>
+        <label class="auto-generation-field">
+          <span>并发数量 · 最大 2</span>
+          <select id="autoGenerateConcurrency">
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="auto-generation-summary">
+        <div><span>当前应用</span><strong id="autoGenerateApp">—</strong></div>
+        <div><span>当前素材</span><strong id="autoGenerateMaterials">0 个</strong></div>
+        <div><span>提示词策略</span><strong>每条独立随机</strong></div>
+      </div>
+
+      <div class="auto-generation-progress">
+        <div class="auto-generation-progress-head">
+          <strong id="autoGenerateStatus">等待开始</strong>
+          <span id="autoGenerateCounter">0 / 0</span>
+        </div>
+        <div class="auto-generation-track"><i id="autoGenerateProgressBar"></i></div>
+        <small id="autoGenerateDetail">仅支持当前选中的视频应用。批量运行时请保持工作台页面打开。</small>
+      </div>
+
+      <div class="auto-generation-actions">
+        <button id="startAutoGenerate" class="generate-btn" type="button">
+          <span>开始自动生成</span><b>↗</b>
+        </button>
+        <button id="stopAutoGenerate" class="auto-stop-btn" type="button" disabled>停止新增</button>
+      </div>
+    </section>
+  </aside>
+</div>
+
+
 <div id="materialSettingsOverlay" class="drawer-overlay hidden">
   <button class="drawer-backdrop" data-close aria-label="关闭素材设置"></button>
   <aside class="drawer glass material-settings-drawer">
@@ -1096,7 +1209,7 @@
 </div>
 
 <div id="toast" class="toast"></div>
-<script src="./app.js?v=rh-task-validation-2"></script>
+<script src="./app.js?v=auto-batch-1"></script>
 
 <script id="prompt-settings-feature-script">
 (() => {
@@ -2133,6 +2246,40 @@
 
   syncLastClothesUI();
   syncLastPerformanceUI();
+
+  window.RHPromptGenerator = Object.freeze({
+    generateRandom() {
+      const template = currentTemplate();
+      if (!template.trim()) throw new Error('提示词模板为空');
+
+      let finalPrompt = template;
+      let clothesResult = null;
+      let performanceResult = null;
+
+      if (template.includes(CLOTHES_PLACEHOLDER)) {
+        clothesResult = generateUniqueRandomClothes();
+        finalPrompt = finalPrompt.replace(CLOTHES_PLACEHOLDER, clothesResult.text);
+        rememberResult(clothesResult);
+      }
+
+      if (template.includes(PERFORMANCE_PLACEHOLDER)) {
+        performanceResult = generateUniqueRandomPerformance();
+        finalPrompt = finalPrompt.replace(PERFORMANCE_PLACEHOLDER, performanceResult.text);
+        rememberPerformanceResult(performanceResult);
+      }
+
+      syncLastClothesUI();
+      syncLastPerformanceUI();
+
+      return {
+        prompt:finalPrompt,
+        clothesSeed:clothesResult?.seed || null,
+        performanceSeed:performanceResult?.seed || null,
+        clothes:clothesResult?.text || '',
+        performance:performanceResult?.text || ''
+      };
+    }
+  });
 
   window.RHPerformanceGenerator = Object.freeze({
     generate(seed) {
