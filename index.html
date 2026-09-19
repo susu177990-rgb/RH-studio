@@ -1226,7 +1226,7 @@
   function normalizeSeed(value) {
     const n = Math.abs(Math.trunc(Number(value)));
     if (!Number.isFinite(n) || n <= 0) return null;
-    return (n % 2147483646) + 1;
+    return ((n - 1) % 2147483646) + 1;
   }
 
   function randomSeed() {
@@ -1503,7 +1503,7 @@
     if (!normalized) throw new Error('Seed 必须是正整数');
 
     for (let salt = 0; salt < MAX_GENERATION_ATTEMPTS; salt++) {
-      const candidateSeed = ((normalized + salt * 104729) % 2147483646) + 1;
+      const candidateSeed = ((normalized - 1 + salt * 104729) % 2147483646) + 1;
       const candidate = buildCandidate(candidateSeed);
       if (candidate && candidate.aestheticScore >= 80 && candidate.sexyScore <= 4) {
         return {
