@@ -139,10 +139,29 @@
   .material-settings-drawer{right:8px;top:8px;bottom:8px;width:calc(100vw - 16px)}
 }
 
-.auto-generate-btn.is-running{
-  border-color:rgba(255,179,92,.34);background:rgba(255,179,92,.08);color:#e0bb90
+.batch-operation-foot{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 118px;
+  gap:8px;
 }
-.auto-generate-btn:disabled{opacity:.38;cursor:not-allowed}
+.batch-operation-foot .generate-btn{width:100%}
+.batch-open-btn{
+  height:41px;border:1px solid rgba(255,179,92,.22);border-radius:12px;
+  background:rgba(255,179,92,.045);color:#caa173;
+  padding:0 11px;display:flex;align-items:center;justify-content:space-between;
+  gap:8px;cursor:pointer;font-size:8px;font-weight:720;transition:.17s
+}
+.batch-open-btn:hover:not(:disabled){
+  border-color:rgba(255,179,92,.34);background:rgba(255,179,92,.085);transform:translateY(-1px)
+}
+.batch-open-btn b{color:var(--accent);font-size:12px}
+.batch-open-btn.is-running{
+  border-color:rgba(255,179,92,.38);background:rgba(255,179,92,.10);color:#dfba8e
+}
+.batch-open-btn:disabled{opacity:.38;cursor:not-allowed;transform:none}
+@media(max-width:620px){
+  .batch-operation-foot{grid-template-columns:minmax(0,1fr) 104px}
+}
 .auto-generation-drawer{width:min(620px,calc(100vw - 32px));display:flex;flex-direction:column;overflow:auto}
 .auto-generation-note{
   margin:0 0 14px;padding:11px 12px;border:1px solid var(--line);border-radius:14px;
@@ -305,9 +324,6 @@
       </div>
       <div class="top-actions">
         <div class="live-pill"><i></i><span>ONLINE</span></div>
-        <button id="openAutoGenerate" class="settings-btn auto-generate-btn" type="button">
-          <span>自动生成</span><b>⇉</b>
-        </button>
         <button id="openHistory" class="history-btn" type="button">
           <span>生成记录</span><b>↺</b>
         </button>
@@ -495,9 +511,12 @@
             <div class="duration-scale"><span>5s</span><span>15s</span></div>
           </div>
 
-          <div class="operation-foot">
+          <div class="operation-foot batch-operation-foot">
             <button id="runBtn" class="generate-btn" type="button">
               <span class="generate-label">开始生成</span><b>↗</b>
+            </button>
+            <button class="batch-open-btn" data-auto-generate-app="minimax-h3" type="button">
+              <span>批量生成</span><b>⇉</b>
             </button>
           </div>
         </section>
@@ -981,9 +1000,12 @@
             </div>
           </div>
 
-          <div class="operation-foot">
+          <div class="operation-foot batch-operation-foot">
             <button id="multiFastRunBtn" class="generate-btn" type="button">
               <span class="multi-fast-generate-label">开始生成</span><b>↗</b>
+            </button>
+            <button class="batch-open-btn" data-auto-generate-app="minimax-h3-multi-fast" type="button">
+              <span>批量生成</span><b>⇉</b>
             </button>
           </div>
         </section>
@@ -1052,14 +1074,14 @@
     <section class="drawer-section compact">
       <div class="drawer-title">
         <div>
-          <strong>批量视频生成</strong>
-          <span>使用开始时当前应用、当前素材与当前生成参数。每条视频独立随机生成一次提示词。</span>
+          <strong>当前页面批量生成</strong>
+          <span>应用、素材、比例、清晰度、时长等全部以点击“批量生成”时当前页面的状态为准。</span>
         </div>
         <b>MAX 2</b>
       </div>
 
       <div class="auto-generation-note">
-        <strong>执行规则：</strong>当前填入素材只上传一次并供本批次复用；每个任务都会重新随机 <code>{{clothes}}</code> 与 <code>{{performance}}</code>。并发最多 2 条，完成后自动补下一条。
+        <strong>执行规则：</strong>当前页面已经填入的素材和参数会在开始时冻结；素材只上传一次并供本批次复用。每个任务都会重新随机 <code>{{clothes}}</code> 与 <code>{{performance}}</code>。并发最多 2 条，完成后自动补下一条。
       </div>
 
       <div class="auto-generation-grid">
@@ -1209,7 +1231,7 @@
 </div>
 
 <div id="toast" class="toast"></div>
-<script src="./app.js?v=auto-batch-3"></script>
+<script src="./app.js?v=auto-batch-local-1"></script>
 
 <script id="prompt-settings-feature-script">
 (() => {
