@@ -12,7 +12,8 @@ const LS = {
   aspect: 'rhstudio.aspectRatio',
   quality: 'rhstudio.qualityPreset',
   duration: 'rhstudio.duration',
-  inst: 'rhstudio.instanceType'
+  inst: 'rhstudio.instanceType',
+  history: 'rhstudio.generationHistory'
 };
 
 const MEDIA = {
@@ -127,21 +128,146 @@ function updateRatioChip() {
   el.textContent = value.split(' ')[0] || '9:16';
 }
 
+function getHistory() {
+  try {
+    const value = JSON.parse(localStorage.getItem(LS.history) || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(items) {
+  try {
+    localStorage.setItem(LS.history, JSON.stringify(items.slice(0, 50)));
+  } catch {}
+}
+
+function qualityLabel(value) {
+  const map = {'0.4':'480P','0.9':'720P','2.0':'1080P'};
+  return map[String(value)] || String(value || '');
+}
+
+function instanceLabel(value) {
+  const map = {default:'24G',plus:'48G',ultra:'84G'};
+  return map[value] || value || '24G';
+}
+
+function upsertHistory(task, extra={}) {
+  const taskId = String(task?.taskId || extra.taskId || '').trim();
+  if (!taskId) return;
+
+  const items = getHistory();
+  const previous = items.find(item => item.taskId === taskId) || {};
+  const results = Array.isArray(task?.results) ? task.results : [];
+  const primary = results.find(isVideo) || results.find(isImage) || results[0] || null;
+
+  const next = {
+    ...previous,
+    taskId,
+    status: task?.status || extra.status || previous.status || 'RUNNING',
+    createdAt: previous.createdAt || extra.createdAt || Date.now(),
+    updatedAt: Date.now(),
+    aspect: extra.aspect || previous.aspect || ($('#aspectRatio')?.value || '').split(' ')[0],
+    quality: extra.quality || previous.quality || qualityLabel($('#qualityPreset')?.value),
+    duration: extra.duration || previous.duration || (($('#durationRange')?.value || '10') + 's'),
+    instance: extra.instance || previous.instance || instanceLabel($('#instanceType')?.value),
+    prompt: extra.prompt ?? previous.prompt ?? ($('#promptInput')?.value || '').trim().slice(0, 120),
+    resultUrl: primary?.url || previous.resultUrl || '',
+    outputType: primary?.outputType || previous.outputType || '',
+    errorMessage: task?.errorMessage || previous.errorMessage || ''
+  };
+
+  saveHistory([next, ...items.filter(item => item.taskId !== taskId)]);
+  if (!$('#historyOverlay')?.classList.contains('hidden')) renderHistory();
+}
+
+function historyStatusText(status) {
+  return {
+    QUEUED:'排队中',
+    RUNNING:'生成中',
+    SUCCESS:'已完成',
+    FAILED:'失败'
+  }[status] || status || '未知';
+}
+
+function formatHistoryTime(value) {
+  try {
+    return new Intl.DateTimeFormat('zh-CN',{
+      month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'
+    }).format(new Date(value));
+  } catch {
+    return '';
+  }
+}
+
+function renderHistory() {
+  const list = $('#historyList');
+  if (!list) return;
+
+  const items = getHistory();
+  if (!items.length) {
+    list.innerHTML =
+      '<div class="history-empty">' +
+        '<strong>还没有生成记录</strong>' +
+        '<span>提交任务后会自动出现在这里。</span>' +
+      '</div>';
+    return;
+  }
+
+  list.innerHTML = items.map(item => {
+    const statusClass = String(item.status || '').toLowerCase();
+    const prompt = item.prompt ? esc(item.prompt) : '未保存提示词摘要';
+    const canLoad = item.taskId ? '' : ' disabled';
+    return (
+      '<article class="history-item">' +
+        '<div class="history-item-head">' +
+          '<div>' +
+            '<span>' + esc(formatHistoryTime(item.createdAt)) + '</span>' +
+            '<strong>' + esc(prompt) + '</strong>' +
+          '</div>' +
+          '<i class="history-status ' + esc(statusClass) + '">' + esc(historyStatusText(item.status)) + '</i>' +
+        '</div>' +
+        '<div class="history-meta">' +
+          '<span>' + esc(item.aspect || '—') + '</span>' +
+          '<span>' + esc(item.quality || '—') + '</span>' +
+          '<span>' + esc(item.duration || '—') + '</span>' +
+          '<span>' + esc(item.instance || '—') + '</span>' +
+        '</div>' +
+        '<div class="history-task">TASK · ' + esc(item.taskId) + '</div>' +
+        '<button class="history-load" type="button" data-history-task="' + esc(item.taskId) + '"' + canLoad + '>' +
+          (item.status === 'SUCCESS' ? '载入结果' : '查看任务') +
+          '<b>↗</b>' +
+        '</button>' +
+      '</article>'
+    );
+  }).join('');
+}
+
+function closeDrawers() {
+  $('.drawer-overlay').forEach(el => el.classList.add('hidden'));
+  document.body.style.overflow = '';
+}
+
 function openSettings() {
+  closeDrawers();
   $('#apiKeyInput').value = '';
   $('#settingsOverlay').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 }
 
-function closeSettings() {
-  $('#settingsOverlay').classList.add('hidden');
-  document.body.style.overflow = '';
+function openHistory() {
+  closeDrawers();
+  renderHistory();
+  $('#historyOverlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
 }
 
 $('#openSettings').onclick = openSettings;
-$$('[data-close]').forEach(el => el.onclick = closeSettings);
+$('#openHistory').onclick = openHistory;
+$('[data-close],[data-close-history]').forEach(el => el.onclick = closeDrawers);
 window.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeSettings();
+  if (e.key === 'Escape') closeDrawers();
 });
 
 function clearFile(slot, rerender=true) {
@@ -614,6 +740,14 @@ async function runTask() {
     if (!res.ok) throw new Error(data.error || ('提交失败 (' + res.status + ')'));
 
     state.task = data;
+    upsertHistory(data,{
+      createdAt:Date.now(),
+      aspect:($('#aspectRatio').value || '').split(' ')[0],
+      quality:qualityLabel($('#qualityPreset').value),
+      duration:($('#durationRange').value || '10') + 's',
+      instance:instanceLabel($('#instanceType').value),
+      prompt:prompt.slice(0,120)
+    });
     toast('视频生成任务已提交','good');
 
     if (data.status === 'SUCCESS') {
@@ -653,6 +787,7 @@ async function queryTask(taskId) {
 
     state.task = data;
     const status = data.status || 'RUNNING';
+    upsertHistory(data,{taskId});
 
     if (status === 'SUCCESS') {
       clearInterval(state.poll);
@@ -737,6 +872,30 @@ $('#clearLocal').onclick = () => {
   renderIdle();
   toast('本地应用配置已重置');
 };
+
+$('#clearHistory').onclick = () => {
+  localStorage.removeItem(LS.history);
+  renderHistory();
+  toast('生成记录已清空');
+};
+
+$('#historyList').addEventListener('click', e => {
+  const button = e.target.closest('[data-history-task]');
+  if (!button) return;
+  const taskId = button.dataset.historyTask;
+  if (!taskId) return;
+
+  if (!apiKey()) {
+    closeDrawers();
+    openSettings();
+    toast('请先配置 RunningHub API Key', 'bad');
+    return;
+  }
+
+  closeDrawers();
+  renderLoading('RUNNING', taskId);
+  queryTask(taskId);
+});
 
 loadConfig();
 updateKeyUI();
