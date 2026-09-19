@@ -528,3 +528,36 @@ Vercel 配置继续保留作为备用兼容，但不再作为默认生产部署�
 - CSS 必须提供 `max-width:100%` / `max-height:100%` 兜底；JS 尺寸计算只能作为增强，不能成为图片正确显示的唯一条件。
 - 应用切换、窗口 resize 和预览容器 resize 时，都要重新执行图片 fit。
 - White Marble、KQ12、基础文生图、Skin Upscale，以及两个 MinimaxH3 视频应用必须遵循同一套媒体预览组件规则。
+
+
+## 17. Persona 联动随机系统
+
+视频快捷提示词随机系统采用统一 Persona 驱动，不允许把服装、表演状态和动作流重新拆成彼此独立的随机器。
+
+固定变量结构：
+
+- `{{clothes}}`：Persona 的外显穿搭。
+- `{{performance}}`：Persona 的抽象表演状态、镜头关系、强度与边界，不写具体动作清单。
+- `{{action}}`：Persona 的 15 秒具体动作事件流。
+
+生成顺序必须保持：
+
+1. 先生成一个 Persona / Persona Seed。
+2. 同一 Persona 生成 clothes。
+3. 同一 Persona 生成 performance。
+4. 同一 Persona 生成 action。
+5. 最后统一替换三个变量。
+
+动作流规则：
+
+- 每条 action 5～7 个核心动作。
+- 每条至少 1 个 Signature Action，最多 2 个；两个 Signature 不得连续。
+- 动作类型比例必须随 Persona 改变，不能所有 Persona 共用同一动作骨架。
+- 加入 Persona 匹配的表情变化、Reaction，并允许 0～1 个 Human Noise。
+- Performance 负责定调，Action 负责具体事件，二者职责不得重新混淆。
+- 最终文案禁止出现“或 / 可以 / 也可以 / 例如 / 任选 / 随机挑一个”等不确定表达。
+- Persona、穿搭、动作、表情、镜头关系必须保持一致。
+- 随机批量生成每一条都生成新的完整 Persona；手动输入同一个 Persona Seed 必须完整复现三层结果。
+- Prompt 模板必须同时保留 `{{clothes}}`、`{{performance}}`、`{{action}}` 三个变量。
+
+随机系统实现集中在 `persona-random.js`。后续扩充审美和行为差异应优先扩展 Persona、服装池、Action / Signature / Expression / Reaction / Human Noise / Arc 数据，不重新建立互不关联的独立随机脚本。
