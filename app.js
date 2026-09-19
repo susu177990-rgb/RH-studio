@@ -21,9 +21,9 @@ const APPS = {
   'image-2mp-upscale': {
     key: 'image-2mp-upscale',
     appId: '2090951249314521089',
-    name: '2MP 生图 · 1.5×',
+    name: 'krea2 raw turbo dual mining 2 Claire',
     subtitle: '8 Steps · Euler A',
-    title: '2MP 生图 · 1.5× · 8 Steps',
+    title: 'krea2 raw turbo dual mining 2 Claire · 8 Steps',
     type: 'image'
   }
 };
