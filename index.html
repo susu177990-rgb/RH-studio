@@ -6,6 +6,50 @@
 <title>RH Studio</title>
 <meta name="description" content="RunningHub multi-app AI workspace" />
 <link rel="stylesheet" href="./style.css?v=unified-media-preview-2">
+
+<style id="prompt-settings-feature-styles">
+.prompt-head-actions{align-self:center;display:flex;align-items:center;gap:8px}
+.prompt-head-actions>b{color:#82786e;font:800 8px ui-monospace,SFMono-Regular,Menlo,monospace}
+.prompt-quick-btn{
+  height:30px;border:1px solid rgba(255,179,92,.20);border-radius:10px;
+  background:rgba(255,179,92,.055);color:#d8b083;padding:0 9px 0 10px;
+  display:flex;align-items:center;gap:7px;cursor:pointer;font-size:7.5px;transition:.16s
+}
+.prompt-quick-btn:hover{border-color:rgba(255,179,92,.34);background:rgba(255,179,92,.10);transform:translateY(-1px)}
+.prompt-quick-btn i{font-style:normal;color:var(--accent);font-size:9px}
+.prompt-settings-drawer{width:min(760px,calc(100vw - 32px));display:flex;flex-direction:column;overflow:hidden}
+.prompt-settings-drawer .drawer-section{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;border-bottom:0;padding-bottom:6px}
+.prompt-template-note{
+  margin:0 0 12px;padding:10px 11px;border:1px solid var(--line);border-radius:13px;
+  background:rgba(255,255,255,.018);color:#746b62;font-size:7.5px;line-height:1.6
+}
+.prompt-template-note code{color:#d6ad7c;font:800 7.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+.prompt-template-editor{
+  flex:1 1 auto;min-height:420px;width:100%;resize:none;border:1px solid var(--line);
+  outline:none;border-radius:16px;background:rgba(0,0,0,.28);color:#eee8df;
+  padding:15px 16px;font-size:10px;line-height:1.72
+}
+.prompt-template-editor:focus{border-color:rgba(255,179,92,.30);box-shadow:0 0 0 4px rgba(255,179,92,.03)}
+.prompt-template-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;min-height:38px}
+.prompt-template-meta{display:flex;align-items:center;gap:10px;min-width:0}
+.prompt-template-save-state{color:#756c63;font-size:7px;white-space:nowrap}
+.prompt-variable-state{
+  min-width:0;height:30px;padding:0 10px;border:1px solid var(--line);border-radius:10px;
+  background:rgba(255,255,255,.018);display:flex;align-items:center;gap:7px;color:#81776d;font-size:7px
+}
+.prompt-variable-dot{width:6px;height:6px;border-radius:50%;background:#756c63;flex:0 0 auto}
+.prompt-variable-dot.ok{background:var(--good);box-shadow:0 0 12px rgba(215,197,158,.30)}
+.prompt-variable-dot.warn{background:var(--bad);box-shadow:0 0 12px rgba(239,136,126,.24)}
+.prompt-template-count{color:#665e56;font:800 7px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+@media(max-width:620px){
+  .prompt-quick-btn{width:30px;padding:0;justify-content:center}
+  .prompt-quick-btn span{display:none}
+  .prompt-settings-drawer{right:8px;top:8px;bottom:8px;width:calc(100vw - 16px)}
+  .prompt-template-editor{min-height:360px}
+  .prompt-template-foot{align-items:flex-start;flex-direction:column}
+  .prompt-template-meta{width:100%;justify-content:space-between}
+}
+</style>
 </head>
 <body>
 <div class="ambient ambient-a"></div>
@@ -118,6 +162,9 @@
         <div class="live-pill"><i></i><span>ONLINE</span></div>
         <button id="openHistory" class="history-btn" type="button">
           <span>生成记录</span><b>↺</b>
+        </button>
+        <button id="openPromptSettings" class="settings-btn prompt-settings-btn" type="button">
+          <span>提示词设置</span><b>✦</b>
         </button>
         <button id="openSettings" class="settings-btn" type="button">
           <span>设置</span><b>⌘</b>
@@ -243,7 +290,10 @@
               <span>PROMPT</span>
               <h2>提示词</h2>
             </div>
-            <b id="promptCount">0</b>
+            <div class="prompt-head-actions">
+              <b id="promptCount">0</b>
+              <button id="promptQuickFill" class="prompt-quick-btn" type="button"><span>提示词生成</span><i>✦</i></button>
+            </div>
           </div>
           <textarea id="promptInput" placeholder="描述视频内容、角色、动作、镜头、节奏、光线、风格，以及每个参考素材应该如何被使用……"></textarea>
         </section>
@@ -739,7 +789,10 @@
               <span>PROMPT</span>
               <h2>提示词</h2>
             </div>
-            <b id="multiFastPromptCount">0</b>
+            <div class="prompt-head-actions">
+              <b id="multiFastPromptCount">0</b>
+              <button id="multiFastPromptQuickFill" class="prompt-quick-btn" type="button"><span>提示词生成</span><i>✦</i></button>
+            </div>
           </div>
           <textarea id="multiFastPromptInput" placeholder="描述人物、动作、镜头、台词、声音和整体视频内容……"></textarea>
         </section>
@@ -833,7 +886,176 @@
   </aside>
 </div>
 
+
+<div id="promptSettingsOverlay" class="drawer-overlay hidden">
+  <button class="drawer-backdrop" data-close aria-label="关闭提示词设置"></button>
+  <aside class="drawer glass prompt-settings-drawer">
+    <div class="drawer-head">
+      <div><span>PROMPT SETTINGS</span><h2>提示词设置</h2></div>
+      <button class="drawer-close" data-close type="button">×</button>
+    </div>
+
+    <section class="drawer-section">
+      <div class="drawer-title">
+        <div>
+          <strong>视频快捷提示词模板</strong>
+          <span>两个视频应用共用；修改后自动保存，下一次点击“提示词生成”立即使用最新版。</span>
+        </div>
+        <b>BUILT-IN</b>
+      </div>
+
+      <div class="prompt-template-note">
+        <code>{{clothes}}</code> 是预留服装变量。本阶段只保留变量，不执行随机服装替换；只要模板里仍存在它，后续服装脚本即可继续接管。
+      </div>
+
+      <textarea id="promptTemplateInput" class="prompt-template-editor" spellcheck="false" aria-label="视频快捷提示词模板"></textarea>
+
+      <div class="prompt-template-foot">
+        <div class="prompt-template-meta">
+          <div class="prompt-variable-state">
+            <i id="promptTemplateVariableDot" class="prompt-variable-dot"></i>
+            <span id="promptTemplateVariableText">检测 {{clothes}}</span>
+          </div>
+          <span id="promptTemplateSaveState" class="prompt-template-save-state">使用网站内置模板</span>
+        </div>
+        <b id="promptTemplateCount" class="prompt-template-count">0 字符</b>
+      </div>
+    </section>
+  </aside>
+</div>
+
 <div id="toast" class="toast"></div>
 <script src="./app.js?v=unified-media-preview-2"></script>
+
+<script id="prompt-settings-feature-script">
+(() => {
+  const PROMPT_TEMPLATE_KEY = 'rhstudio.videoPromptTemplate';
+  const CLOTHES_PLACEHOLDER = '{{clothes}}';
+  const DEFAULT_VIDEO_PROMPT_TEMPLATE = `9:16 竖屏，约 10 秒，真人写实手机自拍视频质感，单镜头连续拍摄，无转场，无剪辑。
+
+一名年轻成年东亚女性站在室内高档烟酒 / 商品零售店的玻璃展示柜前。女性身材纤细修长，长黑发自然披散，侧分发型，精致但自然的日常妆容，佩戴简约耳饰和项链。
+
+服装：{{clothes}}
+
+背景是一整面黑色金属框架玻璃商品展示柜，柜内密集整齐陈列不同颜色和尺寸的高档礼盒、盒装商品与条装商品。展示柜内部有连续暖黄色 LED 灯带，玻璃表面存在真实环境反射。背景清晰可辨，只带轻微自然景深。
+
+### 人物动作
+
+开场人物正面站在镜头前，身体略微侧向，持续看向摄影机。双臂自然下垂，肩膀放松，通过腰胯和重心进行非常轻微、自然的左右摆动，头部也伴随身体做细微倾斜，保持放松、略带微笑的状态。
+
+随后人物自然抬起一只手，从身体侧面向镜头前方轻柔抬起，手掌和手指经过镜头方向，动作连续流畅；接着将手指靠近嘴唇和脸颊，做一个轻巧、俏皮、含蓄的飞吻 / 撩人手势，短暂停留，然后手腕自然翻转，将手向身体侧面轻轻挥开并放下。
+
+人物重新恢复自然站姿，继续轻微摆动身体。双手短暂靠近腰部和下腹位置，自然整理姿态，不刻意摆拍，然后再次放松垂下。
+
+接着抬起一只手到头侧，手指自然穿过侧面的长发，将头发轻轻向后拨，经过耳侧直到后颈附近，动作缓慢自然。拨头发过程中头部略微侧倾，头发受到手部动作产生真实柔软的摆动和惯性。
+
+最后手从头发处自然放下，身体轻轻向一侧倾斜，头部微微歪向一侧，再次看向镜头，露出轻微自然笑容，以放松的人像姿态结束。
+
+### 镜头
+
+手机竖屏人像拍摄，摄影机位于人物正前方，约 28–35mm 等效焦段，中景至大腿景别，人物始终占据画面中央主体区域。
+
+摄影机基本保持原地，不推拉、不环绕、不明显变焦，只存在非常轻微的真人手持漂移和细小晃动，使画面具有真实手机拍摄感，而不是完全机械锁死。
+
+人物动作是整个视频的主体，镜头始终持续对焦人物脸部和上半身，人物与背景空间关系保持稳定。
+
+### 光线与质感
+
+@图1:一家陈列密集的烟草零售店内，整面黑金展示柜摆满彩色烟盒，暖黄色层板灯带自上而下均匀打亮商品，形成金色反射与局部高光，整体呈现温暖、明亮且略带商业橱窗感的室内光影。
+
+整体曝光明亮干净，暖色温，高动态范围，肤色自然通透但保留真实皮肤纹理。头发、玻璃、金属和商品包装存在自然高光与反射。
+
+真实高端智能手机视频质感，轻微电子锐度，轻度手机 HDR，没有强烈电影调色，没有过度磨皮，没有强背景虚化。
+
+### 强制要求
+
+人物全程保持同一个人、同一张脸、同一发型和稳定人体比例。
+
+动作必须松弛、缓慢、连续，有真实人体重心变化和手臂惯性，不要机械摆拍，不要舞蹈感。
+
+头发必须跟随头部和手部动作产生真实二级运动。
+
+手指结构自然，不增加手指，不发生手掌融化或穿模。
+
+背景展示柜结构全程稳定，不变形、不漂移、不随机改变商品位置。
+
+单镜头到底，无字幕，无文字，无水印，无慢动作，无快速运镜，无突然动作，无镜头切换。`;
+
+  const overlay = document.querySelector('#promptSettingsOverlay');
+  const editor = document.querySelector('#promptTemplateInput');
+  const count = document.querySelector('#promptTemplateCount');
+  const variableDot = document.querySelector('#promptTemplateVariableDot');
+  const variableText = document.querySelector('#promptTemplateVariableText');
+  const saveState = document.querySelector('#promptTemplateSaveState');
+
+  function currentTemplate() {
+    const saved = localStorage.getItem(PROMPT_TEMPLATE_KEY);
+    return saved === null ? DEFAULT_VIDEO_PROMPT_TEMPLATE : saved;
+  }
+
+  function syncTemplateMeta(mode='loaded') {
+    if (!editor) return;
+    const value = editor.value;
+    const hasPlaceholder = value.includes(CLOTHES_PLACEHOLDER);
+
+    if (count) count.textContent = value.length + ' 字符';
+    if (variableDot) variableDot.className = 'prompt-variable-dot ' + (hasPlaceholder ? 'ok' : 'warn');
+    if (variableText) {
+      variableText.textContent = hasPlaceholder
+        ? '{{clothes}} 已保留'
+        : '未检测到 {{clothes}}';
+    }
+    if (saveState) {
+      const saved = localStorage.getItem(PROMPT_TEMPLATE_KEY);
+      saveState.textContent = mode === 'saved'
+        ? '已自动保存'
+        : (saved === null ? '使用网站内置模板' : '已加载自定义模板');
+    }
+  }
+
+  function openPromptSettings() {
+    if (typeof closeDrawers === 'function') closeDrawers();
+    editor.value = currentTemplate();
+    syncTemplateMeta('loaded');
+    overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(() => editor.focus());
+  }
+
+  function fillPrompt(targetId) {
+    const value = currentTemplate();
+    if (!value.trim()) {
+      if (typeof toast === 'function') toast('提示词模板为空，请先在提示词设置中填写', 'bad');
+      openPromptSettings();
+      return;
+    }
+
+    const target = document.querySelector(targetId);
+    if (!target) return;
+
+    target.value = value;
+    target.dispatchEvent(new Event('input', {bubbles:true}));
+    target.dispatchEvent(new Event('change', {bubbles:true}));
+    target.focus();
+
+    if (typeof toast === 'function') toast('提示词模板已填充', 'good');
+  }
+
+  document.querySelector('#openPromptSettings')?.addEventListener('click', openPromptSettings);
+  document.querySelector('#promptQuickFill')?.addEventListener('click', () => fillPrompt('#promptInput'));
+  document.querySelector('#multiFastPromptQuickFill')?.addEventListener('click', () => fillPrompt('#multiFastPromptInput'));
+
+  editor?.addEventListener('input', () => {
+    localStorage.setItem(PROMPT_TEMPLATE_KEY, editor.value);
+    syncTemplateMeta('saved');
+  });
+
+  window.addEventListener('storage', event => {
+    if (event.key !== PROMPT_TEMPLATE_KEY || overlay?.classList.contains('hidden')) return;
+    editor.value = currentTemplate();
+    syncTemplateMeta('loaded');
+  });
+})();
+</script>
 </body>
 </html>
