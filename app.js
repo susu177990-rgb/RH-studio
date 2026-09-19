@@ -1080,14 +1080,15 @@ function renderVideoSuccess(task) {
   setVideoDownload(url, type);
 
   if (isVideo(primary) && url) {
-    $('#resultArea').innerHTML = '<video src="' + esc(mediaUrl) + '" controls playsinline preload="metadata"></video>';
-    const video = $('#resultArea video');
+    $('#resultArea').innerHTML = '<video class="generated-video" src="' + esc(mediaUrl) + '" controls playsinline preload="metadata"></video>';
+    const video = $('#resultArea video.generated-video');
     video?.addEventListener('error', () => {
       const code = video.error?.code || '';
       toast('视频已生成，但浏览器加载失败' + (code ? ' · MEDIA_ERR_' + code : ''), 'bad');
     }, {once:true});
   } else if (isImage(primary) && url) {
-    $('#resultArea').innerHTML = '<img src="' + esc(mediaUrl) + '" alt="generated output">';
+    $('#resultArea').innerHTML = generatedImageTag(url);
+    bindGeneratedImageFallbacks($('#resultArea'));
   } else if (primary.text) {
     $('#resultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
   } else {
@@ -2039,14 +2040,15 @@ function renderMultiFastSuccess(task) {
   setMultiFastDownload(url, type);
 
   if (isVideo(primary) && url) {
-    $('#multiFastResultArea').innerHTML = '<video src="' + esc(mediaUrl) + '" controls playsinline preload="metadata"></video>';
-    const video = $('#multiFastResultArea video');
+    $('#multiFastResultArea').innerHTML = '<video class="generated-video" src="' + esc(mediaUrl) + '" controls playsinline preload="metadata"></video>';
+    const video = $('#multiFastResultArea video.generated-video');
     video?.addEventListener('error', () => {
       const code = video.error?.code || '';
       toast('视频已生成，但浏览器加载失败' + (code ? ' · MEDIA_ERR_' + code : ''), 'bad');
     }, {once:true});
   } else if (isImage(primary) && url) {
-    $('#multiFastResultArea').innerHTML = '<img src="' + esc(mediaUrl) + '" alt="generated output">';
+    $('#multiFastResultArea').innerHTML = generatedImageTag(url);
+    bindGeneratedImageFallbacks($('#multiFastResultArea'));
   } else if (primary.text) {
     $('#multiFastResultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
   } else {
