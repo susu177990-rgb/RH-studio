@@ -2720,6 +2720,7 @@ $('#saveKey').onclick = () => {
   localStorage.setItem(LS.key,value);
   $('#apiKeyInput').value = '';
   updateKeyUI();
+  restoreRuntimeTasks('');
   toast('API Key 已保存到当前浏览器','good');
 };
 
@@ -2793,25 +2794,26 @@ window.addEventListener('pageshow', event => {
 });
 
 if (recoveryTaskId) {
+  const view = runtimeViews()[initialApp] || runtimeViews()[APP_KEYS.video];
+  const snapshot = {
+    taskId:recoveryTaskId,
+    status:'RUNNING',
+    results:[],
+    errorCode:'',
+    errorMessage:'',
+    createdAt:Date.now(),
+    updatedAt:Date.now()
+  };
+
+  view.state.task = snapshot;
+  view.renderLoading('RUNNING', recoveryTaskId);
+  saveRuntimeTask(initialApp, snapshot);
+
   if (!apiKey()) {
     toast('请先在设置中保存 API Key，再恢复任务', 'bad');
-  } else if (initialApp === APP_KEYS.image) {
-    renderImageLoading('RUNNING', recoveryTaskId);
-    queryImageTask(recoveryTaskId);
-  } else if (initialApp === APP_KEYS.whiteMarble) {
-    renderWhiteMarbleLoading('RUNNING', recoveryTaskId);
-    queryWhiteMarbleTask(recoveryTaskId);
-  } else if (initialApp === APP_KEYS.kq12Portrait) {
-    renderKQ12Loading('RUNNING', recoveryTaskId);
-    queryKQ12Task(recoveryTaskId);
-  } else if (initialApp === APP_KEYS.skinUpscale) {
-    renderSkinUpscaleLoading('RUNNING', recoveryTaskId);
-    querySkinUpscaleTask(recoveryTaskId);
-  } else if (initialApp === APP_KEYS.multiFast) {
-    renderMultiFastLoading('RUNNING', recoveryTaskId);
-    queryMultiFastTask(recoveryTaskId);
   } else {
-    renderVideoLoading('RUNNING', recoveryTaskId);
-    queryVideoTask(recoveryTaskId);
+    clearInterval(view.state.poll);
+    view.state.poll = setInterval(() => view.query(recoveryTaskId), 3000);
+    view.query(recoveryTaskId);
   }
 }
