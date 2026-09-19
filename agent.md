@@ -411,29 +411,6 @@ Vercel 配置继续保留作为备用兼容，但不再作为默认生产部署�
 - 禁止把本应用的 Node ID / 默认值复用于其他应用，除非对应 RunningHub 文档明确一致。
 
 
-### 14.3 krea2 raw turbo dual mining 2 Claire
-
-- `appKey`: `image-2mp-upscale`
-- 类型：纯文本生图
-- RunningHub AI App ID：`2090951249314521089`
-- 主输入：
-  - Prompt：Node 63 / `value`
-- 已确认控制：
-  - 画幅：Node 49 / `aspect_ratio`
-  - 输出像素：Node 49 / `megapixels`，固定值 `2`
-  - 放大倍率：Node 95 / `scale_by`，固定值 `1.5`
-  - CFG：Node 53 / `cfg`，固定值 `1`
-  - Denoise：Node 53 / `denoise`，固定值 `1`
-  - Sampler：Node 53 / `sampler_name`，固定值 `euler_ancestral`
-  - Scheduler：Node 53 / `scheduler`，固定值 `sgm_uniform`
-  - Steps：Node 53 / `steps`，固定值 `8`
-- 默认画幅来自 API 示例：`3:4 (Portrait Standard)`。
-- 输出：图片。
-- 当前主界面只暴露 Prompt 和画幅；2MP、1.5×、8 Steps、Sampler / Scheduler 等按 API 示例固定提交。
-- API Key 与运行实例统一使用全局设置。
-- 本应用节点不得与其他 AI App 的同号节点混用。
-
-
 ### 14.4 Krea2 turbo White_Marble-AIO（Portrait Master）
 
 - `appKey`: `krea2-white-marble`
@@ -568,4 +545,4 @@ Vercel 配置继续保留作为备用兼容，但不再作为默认生产部署�
 - 单张结果统一使用 `img.generated-image`，必须完整显示原图比例，居中，`object-fit: contain`，禁止 crop、stretch 或按原始像素尺寸溢出容器。
 - CSS 必须提供 `max-width:100%` / `max-height:100%` 兜底；JS 尺寸计算只能作为增强，不能成为图片正确显示的唯一条件。
 - 应用切换、窗口 resize 和预览容器 resize 时，都要重新执行图片 fit。
-- White Marble、KQ12、基础文生图、Krea2 Claire、Face T2I、Skin Upscale 等图片应用必须遵循同一套预览组件规则。
+- White Marble、KQ12、基础文生图、Face T2I、Skin Upscale 等图片应用必须遵循同一套预览组件规则。
