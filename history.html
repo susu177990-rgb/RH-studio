@@ -15,79 +15,28 @@
 
 <div class="history-shell">
   <header class="history-topbar glass">
-    <div class="history-brand">
-      <div class="mark">RH</div>
+    <div class="history-title">
+      <a class="history-logo" href="/">RH</a>
       <div>
         <span>GENERATION HISTORY</span>
         <strong>生成记录</strong>
       </div>
+      <b id="historyCount">0</b>
     </div>
 
-    <div class="history-top-actions">
-      <div id="historyApiState" class="history-api-pill"><i></i><span>API KEY</span><b>CHECKING</b></div>
-      <a class="history-back" href="/">
-        <span>返回工作台</span><b>↙</b>
-      </a>
+    <div class="history-actions">
+      <button id="importHistoryTask" class="history-action-btn" type="button">导入 Task</button>
+      <a class="history-back" href="/">返回工作台 <b>↙</b></a>
     </div>
   </header>
 
   <main class="history-main">
-    <section class="history-hero glass">
-      <div class="history-hero-copy">
-        <span>RH STUDIO · LOCAL TASK INDEX</span>
-        <h1>生成记录</h1>
-        <p>本站提交的任务会自动记录在当前浏览器。也可以通过 Task ID 查询 RunningHub 的真实状态并导入。</p>
+    <div id="historyList" class="history-masonry">
+      <div class="history-empty">
+        <strong>还没有生成记录</strong>
+        <span>从工作台生成的视频会自动出现在这里。</span>
       </div>
-
-      <div class="history-summary">
-        <div><span>全部</span><strong id="historyCount">0</strong></div>
-        <div><span>已完成</span><strong id="historySuccessCount">0</strong></div>
-        <div><span>运行中</span><strong id="historyRunningCount">0</strong></div>
-        <div><span>失败</span><strong id="historyFailedCount">0</strong></div>
-      </div>
-    </section>
-
-    <section class="history-tools glass">
-      <div class="history-import-block">
-        <div class="history-tool-copy">
-          <span>IMPORT TASK</span>
-          <strong>导入已有任务</strong>
-          <small>输入 RunningHub Task ID，查询真实状态并加入本地记录。</small>
-        </div>
-        <div class="history-import-control">
-          <input id="historyTaskInput" class="input" inputmode="numeric" placeholder="例如：2101220462590025729">
-          <button id="importHistoryTask" class="btn primary" type="button">导入任务</button>
-        </div>
-      </div>
-
-      <div class="history-tool-actions">
-        <button id="syncHistory" class="btn soft" type="button">同步状态</button>
-        <button id="clearHistory" class="btn soft history-danger" type="button">清空记录</button>
-      </div>
-    </section>
-
-    <section class="history-content glass">
-      <div class="history-content-head">
-        <div>
-          <span>RECENT TASKS</span>
-          <h2>最近任务</h2>
-        </div>
-        <div class="history-filter">
-          <button class="history-filter-btn active" data-filter="ALL" type="button">全部</button>
-          <button class="history-filter-btn" data-filter="SUCCESS" type="button">已完成</button>
-          <button class="history-filter-btn" data-filter="RUNNING" type="button">运行中</button>
-          <button class="history-filter-btn" data-filter="FAILED" type="button">失败</button>
-        </div>
-      </div>
-
-      <div id="historyList" class="history-page-list">
-        <div class="history-page-empty">
-          <div>↺</div>
-          <strong>还没有生成记录</strong>
-          <span>从工作台提交任务后会自动出现在这里。</span>
-        </div>
-      </div>
-    </section>
+    </div>
   </main>
 </div>
 
