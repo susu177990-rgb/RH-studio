@@ -23,13 +23,13 @@
       <div class="section-label">应用</div>
       <div class="app-filter" role="group" aria-label="应用类型筛选">
         <button class="app-filter-btn active" data-app-filter="all" type="button" aria-pressed="true">
-          <span>全部</span><b id="appFilterCountAll">7</b>
+          <span>全部</span><b id="appFilterCountAll">8</b>
         </button>
         <button class="app-filter-btn" data-app-filter="image" type="button" aria-pressed="false">
           <span>图片</span><b id="appFilterCountImage">6</b>
         </button>
         <button class="app-filter-btn" data-app-filter="video" type="button" aria-pressed="false">
-          <span>视频</span><b id="appFilterCountVideo">1</b>
+          <span>视频</span><b id="appFilterCountVideo">2</b>
         </button>
         <button class="app-filter-btn" data-app-filter="text" type="button" aria-pressed="false">
           <span>文字</span><b id="appFilterCountText">0</b>
@@ -95,6 +95,15 @@
           <div class="app-copy">
             <strong>去AI感真实皮肤高清放大</strong>
             <span>Image Enhance</span>
+          </div>
+          <i class="active-dot"></i>
+        </button>
+
+        <button class="app-item" data-app="minimax-h3-multi-fast" type="button">
+          <div class="app-icon">MF</div>
+          <div class="app-copy">
+            <strong>MinimaxH3多图生视频</strong>
+            <span>加速版</span>
           </div>
           <i class="active-dot"></i>
         </button>
@@ -836,6 +845,163 @@
           <span class="skin-upscale-generate-label">开始处理</span><b>↗</b>
         </button>
       </section>
+    </div>
+
+
+    <div id="workspaceMultiFast" class="workspace app-workspace hidden">
+      <div class="workspace-top">
+        <section class="asset-panel glass">
+          <div class="panel-head">
+            <div>
+              <span>REFERENCE INPUTS</span>
+              <h2>多图参考素材</h2>
+            </div>
+            <b>9 INPUTS</b>
+          </div>
+
+          <div class="image-grid">
+            <button class="upload-slot image-slot" data-slot="mfastImg141" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>01</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 1</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="mfastImg142" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>02</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 2</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="mfastImg143" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>03</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 3</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="mfastImg161" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>04</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 4</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="mfastImg165" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>05</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 5</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="mfastImg166" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>06</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 6</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+          </div>
+
+          <button class="upload-slot video-reference" data-slot="mfastVideo164" type="button">
+            <input type="file" accept="video/*" hidden>
+            <div class="video-reference-preview"><span>VIDEO</span><i>＋</i></div>
+            <div class="video-reference-copy">
+              <strong>参考视频</strong>
+              <small>可选视频参考</small>
+            </div>
+            <em class="slot-clear hidden">×</em>
+          </button>
+
+          <div class="audio-grid">
+            <button class="upload-slot audio-slot" data-slot="mfastAudio144" type="button">
+              <input type="file" accept="audio/*" hidden>
+              <div class="audio-icon">A1</div>
+              <div><strong>音频 1</strong><small>AUDIO</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot audio-slot" data-slot="mfastAudio160" type="button">
+              <input type="file" accept="audio/*" hidden>
+              <div class="audio-icon">A2</div>
+              <div><strong>音频 2</strong><small>AUDIO</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+          </div>
+        </section>
+
+        <section class="output-panel glass">
+          <div class="panel-head output-head">
+            <div>
+              <span>VIDEO OUTPUT</span>
+              <h2>视频预览</h2>
+            </div>
+            <div class="output-head-actions">
+              <div class="status-pill">
+                <i id="multiFastStatusDot" class="status-dot"></i>
+                <div><strong id="multiFastStatusText">等待生成</strong><span id="multiFastTaskMeta">READY</span></div>
+              </div>
+              <button id="multiFastDownloadBtn" class="download-btn" type="button" disabled>
+                <span>下载</span><b>↓</b>
+              </button>
+            </div>
+          </div>
+
+          <div class="output-stage-wrap">
+            <div id="multiFastResultArea" class="output-stage">
+              <div class="empty-state">
+                <div class="empty-mark">▶</div>
+                <strong>准备生成视频</strong>
+                <span>添加参考素材并输入提示词，结果会显示在这里。</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="workspace-bottom">
+        <section class="prompt-panel glass">
+          <div class="panel-head compact-head">
+            <div>
+              <span>PROMPT</span>
+              <h2>提示词</h2>
+            </div>
+            <b id="multiFastPromptCount">0</b>
+          </div>
+          <textarea id="multiFastPromptInput" placeholder="描述人物、动作、镜头、台词、声音和整体视频内容……"></textarea>
+        </section>
+
+        <section class="operation-panel glass">
+          <div class="panel-head compact-head operation-head">
+            <div>
+              <span>GENERATION CONTROL</span>
+              <h2>操作区</h2>
+            </div>
+            <div class="workflow-state compact-state"><i></i><span>加速版 · V2</span></div>
+          </div>
+
+          <div class="operation-grid">
+            <label class="operation-field">
+              <span>比例</span>
+              <select id="multiFastAspectRatio">
+                <option value="1:1 (Square)">1:1</option>
+                <option value="2:3 (Portrait Photo)">2:3</option>
+                <option value="3:2 (Photo)">3:2</option>
+                <option value="3:4 (Portrait Standard)">3:4</option>
+                <option value="4:3 (Standard)">4:3</option>
+                <option value="9:16 (Portrait Widescreen)" selected>9:16</option>
+                <option value="16:9 (Widescreen)">16:9</option>
+                <option value="21:9 (Ultrawide)">21:9</option>
+              </select>
+            </label>
+
+            <div class="image-fixed-field">
+              <span>固定参数</span>
+              <strong>132=10 · 147=0.4</strong>
+            </div>
+          </div>
+
+          <div class="operation-foot">
+            <button id="multiFastRunBtn" class="generate-btn" type="button">
+              <span class="multi-fast-generate-label">开始生成</span><b>↗</b>
+            </button>
+          </div>
+        </section>
+      </div>
     </div>
 
   </main>
