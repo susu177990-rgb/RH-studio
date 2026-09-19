@@ -80,6 +80,71 @@
   .prompt-template-foot{align-items:flex-start;flex-direction:column}
   .prompt-template-meta{width:100%;justify-content:space-between}
 }
+
+.material-head-actions{display:flex;align-items:center;gap:8px}
+.material-head-actions>b{color:#6f675f;font:800 6.5px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.55px;white-space:nowrap}
+.material-quick-btn{
+  height:30px;border:1px solid rgba(255,179,92,.20);border-radius:10px;
+  background:rgba(255,179,92,.055);color:#d8b083;padding:0 9px 0 10px;
+  display:flex;align-items:center;gap:7px;cursor:pointer;font-size:7.5px;transition:.16s
+}
+.material-quick-btn:hover{border-color:rgba(255,179,92,.34);background:rgba(255,179,92,.10);transform:translateY(-1px)}
+.material-quick-btn i{font-style:normal;color:var(--accent);font-size:9px}
+.material-settings-drawer{width:min(860px,calc(100vw - 32px));display:flex;flex-direction:column;overflow:hidden}
+.material-settings-drawer .drawer-section{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;border-bottom:0}
+.material-library-note{
+  margin:0 0 12px;padding:10px 11px;border:1px solid var(--line);border-radius:13px;
+  background:rgba(255,255,255,.018);color:#746b62;font-size:7.5px;line-height:1.6
+}
+.material-library-note strong{color:#bca27f;font-weight:800}
+.material-library-grid{
+  flex:1 1 auto;min-height:0;overflow:auto;padding-right:4px;
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-content:start
+}
+.material-card{
+  min-width:0;border:1px solid var(--line);border-radius:16px;background:rgba(0,0,0,.18);
+  padding:10px;display:grid;grid-template-columns:96px minmax(0,1fr);gap:11px;align-items:center
+}
+.material-card.has-file{border-color:rgba(255,179,92,.15);background:rgba(255,179,92,.025)}
+.material-card-preview{
+  width:96px;height:72px;border-radius:12px;border:1px solid rgba(255,255,255,.05);
+  background:#080808;display:flex;align-items:center;justify-content:center;overflow:hidden;
+  color:#675f57;position:relative
+}
+.material-card-preview img,.material-card-preview video{width:100%;height:100%;object-fit:cover;display:block}
+.material-card-preview .material-kind-icon{
+  font:800 10px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:1px;color:#7d7267
+}
+.material-card-preview .material-kind-icon.audio{font-size:20px;color:#a78967}
+.material-card-body{min-width:0}
+.material-card-copy{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.material-card-copy strong{display:block;color:#c8beb4;font-size:9px;white-space:nowrap}
+.material-card-copy b{
+  flex:0 0 auto;padding:4px 6px;border:1px solid var(--line);border-radius:999px;
+  color:#6e655d;font:800 5.8px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.65px
+}
+.material-card.has-file .material-card-copy b{color:#bc966d;border-color:rgba(255,179,92,.15);background:rgba(255,179,92,.035)}
+.material-card-meta{display:block;margin-top:5px;color:#625a52;font-size:6.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.material-card-actions{display:flex;align-items:center;gap:7px;margin-top:10px}
+.material-card-actions button{
+  height:29px;border-radius:9px;padding:0 9px;cursor:pointer;font-size:6.8px;transition:.15s
+}
+.material-upload-btn{border:1px solid rgba(255,179,92,.17);background:rgba(255,179,92,.045);color:#c79d70}
+.material-upload-btn:hover{background:rgba(255,179,92,.09);border-color:rgba(255,179,92,.29)}
+.material-delete-btn{border:1px solid var(--line);background:rgba(255,255,255,.018);color:#756b63}
+.material-delete-btn:hover{border-color:rgba(239,136,126,.19);color:#bd7e77;background:rgba(239,136,126,.035)}
+.material-delete-btn:disabled{opacity:.32;cursor:default}
+@media(max-width:760px){
+  .material-library-grid{grid-template-columns:1fr}
+  .material-settings-drawer{right:8px;top:8px;bottom:8px;width:calc(100vw - 16px)}
+}
+@media(max-width:620px){
+  .material-quick-btn{width:30px;padding:0;justify-content:center}
+  .material-quick-btn span{display:none}
+  .material-card{grid-template-columns:82px minmax(0,1fr)}
+  .material-card-preview{width:82px;height:64px}
+}
+
 </style>
 </head>
 <body>
@@ -194,6 +259,9 @@
         <button id="openHistory" class="history-btn" type="button">
           <span>生成记录</span><b>↺</b>
         </button>
+        <button id="openMaterialSettings" class="settings-btn" type="button">
+          <span>素材设置</span><b>▦</b>
+        </button>
         <button id="openPromptSettings" class="settings-btn prompt-settings-btn" type="button">
           <span>提示词设置</span><b>✦</b>
         </button>
@@ -211,7 +279,10 @@
               <span>REFERENCE INPUTS</span>
               <h2>参考素材</h2>
             </div>
-            <b>10 INPUTS</b>
+            <div class="material-head-actions">
+              <button id="quickFillMaterials" class="material-quick-btn" type="button"><span>填入素材</span><i>↓</i></button>
+              <b><span id="materialSavedCount">0</span>/10 SAVED</b>
+            </div>
           </div>
 
           <div class="image-grid">
@@ -918,6 +989,33 @@
 </div>
 
 
+<div id="materialSettingsOverlay" class="drawer-overlay hidden">
+  <button class="drawer-backdrop" data-close aria-label="关闭素材设置"></button>
+  <aside class="drawer glass material-settings-drawer">
+    <div class="drawer-head">
+      <div><span>MATERIAL SETTINGS</span><h2>素材设置</h2></div>
+      <button class="drawer-close" data-close type="button">×</button>
+    </div>
+
+    <section class="drawer-section">
+      <div class="drawer-title">
+        <div>
+          <strong>视频应用快捷素材</strong>
+          <span>6 张图片、1 个视频、3 个音频。上传或更换后立即写入当前浏览器缓存。</span>
+        </div>
+        <b id="materialLibraryBadge">0 / 10</b>
+      </div>
+
+      <div class="material-library-note">
+        <strong>本地持久化：</strong>素材使用浏览器 IndexedDB 保存，刷新、关闭页面后重新打开仍然保留；不会同步到其他浏览器或其他电脑。更换素材会直接覆盖对应卡槽。保存后自动重命名为“图片1～图片6 / 视频1 / 音频1～音频3”，原文件扩展名保留。
+      </div>
+
+      <div id="materialLibraryGrid" class="material-library-grid"></div>
+    </section>
+  </aside>
+</div>
+
+
 <div id="promptSettingsOverlay" class="drawer-overlay hidden">
   <button class="drawer-backdrop" data-close aria-label="关闭提示词设置"></button>
   <aside class="drawer glass prompt-settings-drawer">
@@ -977,7 +1075,7 @@
 </div>
 
 <div id="toast" class="toast"></div>
-<script src="./app.js?v=unified-media-preview-2"></script>
+<script src="./app.js?v=material-library-1"></script>
 
 <script id="prompt-settings-feature-script">
 (() => {
