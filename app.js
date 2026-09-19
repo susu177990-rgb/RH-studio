@@ -2956,6 +2956,9 @@ async function runAutoBatchItem(snapshot, uploadValues, index) {
   if (!generator?.generateRandom) throw new Error('提示词随机生成器未就绪');
 
   const promptResult = generator.generateRandom();
+  if (!promptResult.clothesSeed && !promptResult.performanceSeed) {
+    throw new Error('提示词模板中没有 {{clothes}} 或 {{performance}}，无法执行随机批量生成');
+  }
   const nodes = buildAutoBatchNodes(snapshot, promptResult.prompt, uploadValues);
   const meta = autoBatchHistoryMeta(snapshot, index, promptResult);
 
