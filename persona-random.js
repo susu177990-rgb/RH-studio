@@ -277,7 +277,7 @@
     {id:'a_line_mini',name:'高腰A字迷你裙',materials:['微弹面料','柔软棉质'],flags:['high_waist']},
     {id:'bodycon_knit_mini',name:'轻微包臀针织短裙',materials:['细罗纹针织','柔软针织'],flags:['high_waist','fitted']},
     {id:'straight_mini',name:'高腰直筒短裙',materials:['微弹面料','柔软垂感面料'],flags:['high_waist']},
-    {id:'denim_mini',name:'深色牛仔短裙',materials:['柔软牛仔'],flags:['high_waist','denim']},
+    {id:'denim_mini',name:'牛仔短裙',materials:['柔软牛仔'],flags:['high_waist','denim']},
     {id:'light_slit_mini',name:'简约微开衩半身短裙',materials:['微弹面料','柔软垂感面料'],flags:['high_waist','slit']},
     {id:'pleated_light_mini',name:'高腰轻百褶感短裙',materials:['柔软垂感面料','柔软棉质'],flags:['high_waist']},
     {id:'soft_knit_mini',name:'柔软针织短裙',materials:['柔软针织','细罗纹针织'],flags:['high_waist']},
@@ -293,7 +293,7 @@
 
   const PANTS = [
     {id:'fitted_flare_jeans',name:'高腰修身微喇牛仔裤',materials:['柔软牛仔','微弹面料'],flags:['high_waist','pocket','fitted']},
-    {id:'dark_straight_jeans',name:'深色高腰直筒牛仔裤',materials:['柔软牛仔'],flags:['high_waist','pocket','denim']},
+    {id:'dark_straight_jeans',name:'高腰直筒牛仔裤',materials:['柔软牛仔'],flags:['high_waist','pocket','denim']},
     {id:'soft_wide_pants',name:'柔软垂感阔腿裤',materials:['柔软垂感面料'],flags:['high_waist','pocket']},
     {id:'high_waist_fitted_pants',name:'高腰修身长裤',materials:['微弹面料','柔软垂感面料'],flags:['high_waist','pocket','fitted']},
     {id:'simple_straight_pants',name:'简约直筒长裤',materials:['柔软垂感面料','柔软棉质'],flags:['high_waist','pocket']}
@@ -993,7 +993,15 @@
     const connectors = ['人物先','随后','接着','之后','随后','接下来','最后'];
     const parts = actionData.events.map((event,index) => {
       let prefix = connectors[Math.min(index,connectors.length-1)];
-      if (index === actionData.events.length - 1) prefix = '最后';
+
+      if (index === 0 && event.text.startsWith('先')) {
+        prefix = '人物';
+      }
+
+      if (index === actionData.events.length - 1) {
+        prefix = event.text.startsWith('最后') ? '' : '最后';
+      }
+
       let text = prefix + event.text;
       if (event.suffixes?.length) text += '，' + event.suffixes.join('，');
       return text;
