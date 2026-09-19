@@ -304,3 +304,11 @@ select,.input{width:100%;height:38px;border:1px solid var(--line);border-radius:
 .history-load{width:100%;height:32px;margin-top:10px;border:1px solid rgba(255,179,92,.16);border-radius:10px;background:rgba(255,179,92,.035);color:#bc966d;display:flex;align-items:center;justify-content:space-between;padding:0 10px;cursor:pointer;font-size:7px}
 .history-load:hover{background:rgba(255,179,92,.075);border-color:rgba(255,179,92,.28)}
 .history-load b{color:var(--accent);font-size:10px}
+
+
+.history-import{margin:12px 2px 2px;padding:12px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.018)}
+.history-import>div:first-child strong{display:block;font-size:9px;color:#bdb3a9}
+.history-import>div:first-child span{display:block;margin-top:4px;color:#665e56;font-size:7px;line-height:1.5}
+.history-import-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
+.history-import-row .input{height:36px}
+.history-import-row .btn{height:36px;min-width:68px}
