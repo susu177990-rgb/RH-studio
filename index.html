@@ -4,96 +4,193 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>RH Studio</title>
-<meta name="description" content="RunningHub API workflow console" />
+<meta name="description" content="RunningHub video generation studio" />
 <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-<div class="ambient a"></div><div class="ambient b"></div><div class="noise"></div>
+<div class="ambient ambient-a"></div>
+<div class="ambient ambient-b"></div>
+<div class="noise"></div>
+
 <div class="shell">
   <aside class="sidebar glass">
     <div>
-      <div class="brand"><div class="mark">RH</div><div><strong>RH Studio</strong><small>RUNNINGHUB CONSOLE</small></div></div>
-      <nav class="nav">
-        <button class="navbtn" data-route="workspace"><span class="ico">◈</span><span>工作台</span></button>
-        <button class="navbtn" data-route="settings"><span class="ico">⌁</span><span>设置</span></button>
-      </nav>
+      <div class="brand">
+        <div class="mark">RH</div>
+        <div class="brand-copy"><strong>RH Studio</strong><small>VIDEO GENERATION</small></div>
+      </div>
+
+      <div class="section-label">应用</div>
+      <div class="app-list">
+        <button class="app-item active" type="button">
+          <div class="app-icon">M3</div>
+          <div class="app-copy">
+            <strong>MinimaxH3多参生视频</strong>
+            <span>量化加速 V3版</span>
+          </div>
+          <i class="active-dot"></i>
+        </button>
+      </div>
     </div>
-    <div class="sidefoot"><div class="statusline"><i id="sideDot" class="dot"></i><span id="sideStatus">API Key 未配置</span></div><div class="mono">LOCAL-FIRST · PRIVATE KEY</div></div>
+
+    <div class="sidebar-foot">
+      <div class="api-state">
+        <i id="sideDot" class="dot"></i>
+        <div>
+          <strong id="sideStatus">API Key 未配置</strong>
+          <span>RunningHub API V2</span>
+        </div>
+      </div>
+    </div>
   </aside>
 
   <main class="main">
     <header class="topbar glass">
-      <div class="crumb"><span>RH Studio</span><i>/</i><b id="crumbTitle">工作台</b></div>
-      <div class="top-actions"><div class="live"><i></i><span>RUNNINGHUB API V2</span></div><div class="avatar">RH</div></div>
+      <div class="page-title">
+        <span>当前应用</span>
+        <strong>MinimaxH3多参生视频 · 量化加速V3版</strong>
+      </div>
+      <div class="top-actions">
+        <div class="live-pill"><i></i><span>ONLINE</span></div>
+        <button id="openSettings" class="settings-btn" type="button" aria-label="打开设置">
+          <span>设置</span><b>⌘</b>
+        </button>
+      </div>
     </header>
 
-    <div id="workspacePage" class="content">
-      <section class="hero glass">
-        <div class="hero-copy">
-          <div class="eyebrow"><span></span>WORKFLOW ORCHESTRATION</div>
-          <h1>Build. Run.<br><em>Observe.</em></h1>
-          <p>把 RunningHub AI App、节点参数、文件输入与任务结果，集中在一个更干净的工作台里。</p>
-        </div>
-        <div class="hero-metrics">
-          <div class="metric"><small>API KEY</small><strong>LOCAL</strong><span>仅保存在当前浏览器</span></div>
-          <div class="metric"><small>TASK STATUS</small><strong>LIVE</strong><span>自动轮询 · 3 秒</span></div>
-          <div class="metric"><small>OUTPUT</small><strong>MULTI</strong><span>Image · Video · Audio · Text</span></div>
-        </div>
-      </section>
-
-      <div id="keyWarning" class="key-warning glass hidden"><i></i><span>尚未配置 RunningHub API Key。</span><button onclick="location.hash='#/settings'">前往设置 →</button></div>
-
-      <section class="workspace-grid">
-        <article class="card glass">
-          <div class="cardhead"><div><span class="step">01</span><h2>运行配置</h2></div><span class="kicker">CONFIG</span></div>
-          <div class="body">
-            <label class="field"><div class="label"><span>AI APP ID</span><i>required</i></div><input id="appId" class="input" placeholder="2084320751339032577"></label>
-            <label class="field"><div class="label"><span>INSTANCE TYPE</span><i>compute</i></div><select id="instanceType"><option value="default">Default · 24G</option><option value="plus">Plus · 48G</option><option value="ultra">Ultra · 84G</option></select></label>
-            <label class="field"><div class="label"><span>PERSONAL QUEUE</span><i>queue</i></div><select id="personalQueue"><option value="false">关闭</option><option value="true">开启</option></select></label>
-            <div class="note">节点会按 <b>nodeInfoList</b> 提交；文件输入先上传 RunningHub，再自动写入对应节点。</div>
+    <div class="content">
+      <section class="preview-panel glass">
+        <div class="preview-head">
+          <div>
+            <span class="eyebrow">GENERATED VIDEO</span>
+            <h1>生成预览</h1>
           </div>
-        </article>
-
-        <article class="card glass">
-          <div class="cardhead"><div><span class="step">02</span><h2>节点参数</h2></div><div class="actions"><button id="addParam" class="btn soft">＋ 参数</button><button id="addFile" class="btn soft">＋ 文件</button></div></div>
-          <div id="nodes" class="nodes"></div>
-          <div class="nodesfoot"><div><small>READY NODES</small><b id="nodeCount">0 个有效节点</b></div><button id="runBtn" class="btn primary">运行工作流 <span>↗</span></button></div>
-        </article>
-      </section>
-
-      <section class="card results glass">
-        <div class="cardhead"><div><span class="step">03</span><h2>任务与结果</h2></div><div class="pulse"><i></i><span>AUTO POLL · 3S</span></div></div>
-        <div id="resultArea"><div class="empty"><div class="empty-orb">◌</div><b>等待任务</b><span>提交工作流后，这里会显示 Task ID、实时状态与生成结果。</span></div></div>
-      </section>
-    </div>
-
-    <div id="settingsPage" class="content hidden">
-      <section class="settings-hero glass">
-        <div><div class="eyebrow"><span></span>LOCAL SETTINGS</div><h1>设置</h1><p>敏感配置只留在你的浏览器里。部署代码不保存真实 API Key。</p></div>
-        <div class="shield">LOCAL<br><span>ONLY</span></div>
-      </section>
-      <div class="settings-grid">
-        <section class="settingcard glass">
-          <div class="cardhead"><div><span class="step">01</span><h2>RunningHub API</h2></div><span id="settingsBadge" class="status-badge">NOT CONFIGURED</span></div>
-          <div class="settingrow">
-            <h3>API Key</h3>
-            <p>API Key 仅写入当前浏览器 localStorage。运行任务时，通过本站后端代理转发给 RunningHub。</p>
-            <div class="keystatus"><i id="settingsDot" class="dot"></i><span id="keyStatusText">尚未保存 API Key</span><span id="keyMask" class="mask"></span></div>
-            <div class="inline"><input id="apiKeyInput" class="input" type="password" autocomplete="off" placeholder="输入 RunningHub API Key"><button id="toggleKey" class="btn soft">显示</button><button id="saveKey" class="btn primary">保存</button></div>
-            <div class="actions sub"><button id="clearKey" class="btn danger">清除 API Key</button></div>
+          <div class="task-status">
+            <i id="statusDot" class="status-dot"></i>
+            <div><span id="statusText">等待生成</span><small id="taskMeta">READY</small></div>
           </div>
-          <div class="settingrow"><h3>本地工作台数据</h3><p>AI App ID、实例类型、队列开关与节点模板会自动保存在当前浏览器。</p><button id="clearLocal" class="btn soft">清除工作台本地数据</button></div>
-        </section>
-        <aside class="security glass">
-          <div class="security-title">PRIVACY MODEL</div>
-          <div class="security-item"><i>01</i><div><b>不使用环境变量</b><span>API Key 由你在设置页直接维护。</span></div></div>
-          <div class="security-item"><i>02</i><div><b>不硬编码</b><span>真实 Key 不进入部署源码。</span></div></div>
-          <div class="security-item"><i>03</i><div><b>仅浏览器保存</b><span>没有账号数据库，也不写入第三方存储。</span></div></div>
-        </aside>
-      </div>
+        </div>
+
+        <div id="resultArea" class="preview-stage">
+          <div class="preview-empty">
+            <div class="play-orb">▶</div>
+            <strong>生成结果会显示在这里</strong>
+            <span>添加参考素材，输入提示词，然后开始生成。</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="composer glass">
+        <div class="composer-main">
+          <label class="prompt-field">
+            <div class="field-title"><span>提示词</span><small>PROMPT</small></div>
+            <textarea id="promptInput" placeholder="描述你希望生成的视频内容、动作、镜头、风格与变化……"></textarea>
+          </label>
+        </div>
+
+        <div class="composer-side">
+          <div class="field-title"><span>参考素材</span><small>REFERENCE</small></div>
+          <div id="referenceBox" class="reference-box">
+            <input id="referenceInput" type="file" accept="image/*,video/*" hidden>
+            <div class="reference-icon">＋</div>
+            <div class="reference-copy">
+              <strong id="referenceName">添加参考图片 / 视频</strong>
+              <span id="referenceHint">点击选择本地文件</span>
+            </div>
+            <button id="clearReference" class="mini-clear hidden" type="button">×</button>
+          </div>
+
+          <div class="parameter-row">
+            <label>
+              <span>算力</span>
+              <select id="instanceType">
+                <option value="default">Default · 24G</option>
+                <option value="plus">Plus · 48G</option>
+                <option value="ultra">Ultra · 84G</option>
+              </select>
+            </label>
+            <label>
+              <span>队列</span>
+              <select id="personalQueue">
+                <option value="false">公共队列</option>
+                <option value="true">个人队列</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="run-row">
+            <div id="mappingState" class="mapping-state"><i></i><span>检查工作流配置…</span></div>
+            <button id="runBtn" class="generate-btn" type="button">开始生成 <span>↗</span></button>
+          </div>
+        </div>
+      </section>
     </div>
   </main>
 </div>
+
+<div id="settingsOverlay" class="settings-overlay hidden">
+  <button id="settingsBackdrop" class="settings-backdrop" aria-label="关闭设置"></button>
+  <aside class="settings-drawer glass">
+    <div class="drawer-head">
+      <div><span>SETTINGS</span><h2>设置</h2></div>
+      <button id="closeSettings" class="close-btn" type="button">×</button>
+    </div>
+
+    <section class="settings-section">
+      <div class="settings-title">
+        <div><strong>RunningHub API</strong><span>仅保存在当前浏览器</span></div>
+        <b id="settingsBadge">NOT CONFIGURED</b>
+      </div>
+      <div class="key-status"><i id="settingsDot" class="dot"></i><span id="keyStatusText">尚未保存 API Key</span><code id="keyMask"></code></div>
+      <div class="key-input-row">
+        <input id="apiKeyInput" class="input" type="password" autocomplete="off" placeholder="输入 RunningHub API Key">
+        <button id="toggleKey" class="btn soft" type="button">显示</button>
+        <button id="saveKey" class="btn primary" type="button">保存</button>
+      </div>
+      <button id="clearKey" class="text-danger" type="button">清除 API Key</button>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-title">
+        <div><strong>当前应用</strong><span>MinimaxH3多参生视频 · 量化加速V3版</span></div>
+      </div>
+      <label class="setting-field">
+        <span>AI App ID</span>
+        <input id="appId" class="input" placeholder="RunningHub AI App ID">
+      </label>
+    </section>
+
+    <section class="settings-section">
+      <div class="settings-title">
+        <div><strong>高级映射</strong><span>主界面不再显示 Node ID</span></div>
+      </div>
+      <div class="mapping-grid">
+        <label class="setting-field">
+          <span>提示词 Node ID</span>
+          <input id="promptNodeId" class="input" placeholder="Node ID">
+        </label>
+        <label class="setting-field">
+          <span>提示词 Field</span>
+          <input id="promptFieldName" class="input" placeholder="text / prompt / value">
+        </label>
+        <label class="setting-field">
+          <span>参考素材 Node ID</span>
+          <input id="referenceNodeId" class="input" placeholder="可选">
+        </label>
+        <label class="setting-field">
+          <span>参考素材 Field</span>
+          <input id="referenceFieldName" class="input" placeholder="image / video / file">
+        </label>
+      </div>
+      <p class="settings-note">这里只需要配置一次。参考素材不是工作流必需项时，参考素材映射可以留空。</p>
+    </section>
+
+    <section class="settings-section compact">
+      <button id="clearLocal" class="btn soft full" type="button">清除本地应用配置</button>
+    </section>
+  </aside>
+</div>
+
 <div id="toast" class="toast"></div>
 <script src="./app.js"></script>
 </body>
