@@ -41,6 +41,14 @@ const APPS = {
     subtitle: 'Prompt Only',
     title: 'KQ12Z真实人像-超绝美感文生图',
     type: 'image'
+  },
+  'face-t2i-v3': {
+    key: 'face-t2i-v3',
+    appId: '2081918043782344705',
+    name: '指定人脸文生图V3 -(Qwen/Krea2)双版本',
+    subtitle: 'Face Guided',
+    title: '指定人脸文生图V3 -(Qwen/Krea2)双版本',
+    type: 'image'
   }
 };
 
@@ -49,7 +57,8 @@ const APP_KEYS = {
   image: 'image-2mp',
   imageUpscale: 'image-2mp-upscale',
   whiteMarble: 'krea2-white-marble',
-  kq12Portrait: 'kq12-portrait'
+  kq12Portrait: 'kq12-portrait',
+  faceT2I: 'face-t2i-v3'
 };
 
 const RH_UPLOAD_DIRECT = 'https://www.runninghub.ai/openapi/v2/media/upload/binary';
@@ -71,6 +80,10 @@ const LS = {
   whiteMarbleHeight: 'rhstudio.whiteMarble.height',
   whiteMarbleSeed: 'rhstudio.whiteMarble.seed',
   kq12Prompt: 'rhstudio.kq12.prompt',
+  faceT2IPrompt: 'rhstudio.faceT2I.prompt',
+  faceT2IModelBranch: 'rhstudio.faceT2I.modelBranch',
+  faceT2IAspect: 'rhstudio.faceT2I.aspect',
+  faceT2IHD: 'rhstudio.faceT2I.hd',
   inst: 'rhstudio.instanceType',
   history: 'rhstudio.generationHistory'
 };
@@ -139,6 +152,17 @@ const kq12State = {
   outputType: ''
 };
 
+const faceT2IState = {
+  task: null,
+  poll: null,
+  running: false,
+  outputUrl: '',
+  outputSourceUrl: '',
+  outputType: '',
+  faceFile: null,
+  faceObjectUrl: ''
+};
+
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
 }[c]));
@@ -194,6 +218,7 @@ function setActiveApp(key, persist=true) {
   $('#workspaceImageUpscale').classList.toggle('hidden', key !== APP_KEYS.imageUpscale);
   $('#workspaceWhiteMarble').classList.toggle('hidden', key !== APP_KEYS.whiteMarble);
   $('#workspaceKQ12').classList.toggle('hidden', key !== APP_KEYS.kq12Portrait);
+  $('#workspaceFaceT2I').classList.toggle('hidden', key !== APP_KEYS.faceT2I);
 
   const app = APPS[key];
   $('#currentAppTitle').textContent = app.title;
@@ -230,6 +255,13 @@ function persistKQ12Config() {
   localStorage.setItem(LS.kq12Prompt, $('#kq12PromptInput').value);
 }
 
+function persistFaceT2IConfig() {
+  localStorage.setItem(LS.faceT2IPrompt, $('#faceT2IPromptInput').value);
+  localStorage.setItem(LS.faceT2IModelBranch, $('#faceT2IModelBranch').value);
+  localStorage.setItem(LS.faceT2IAspect, $('#faceT2IAspectRatio').value);
+  localStorage.setItem(LS.faceT2IHD, $('#faceT2IHD').value);
+}
+
 function loadConfig() {
   $('#promptInput').value = localStorage.getItem(LS.prompt) || '';
   $('#aspectRatio').value = localStorage.getItem(LS.aspect) || '9:16 (Portrait Widescreen)';
@@ -249,6 +281,10 @@ function loadConfig() {
   $('#whiteMarbleHeight').value = localStorage.getItem(LS.whiteMarbleHeight) || '1920';
   $('#whiteMarbleSeed').value = localStorage.getItem(LS.whiteMarbleSeed) || '527633149753192';
   $('#kq12PromptInput').value = localStorage.getItem(LS.kq12Prompt) || '';
+  $('#faceT2IPromptInput').value = localStorage.getItem(LS.faceT2IPrompt) || '';
+  $('#faceT2IModelBranch').value = localStorage.getItem(LS.faceT2IModelBranch) || 'true';
+  $('#faceT2IAspectRatio').value = localStorage.getItem(LS.faceT2IAspect) || '9:16';
+  $('#faceT2IHD').value = localStorage.getItem(LS.faceT2IHD) || 'false';
   $('#instanceType').value = localStorage.getItem(LS.inst) || 'default';
 
   updateDurationUI();
@@ -257,6 +293,7 @@ function loadConfig() {
   updateImageUpscalePromptCount();
   updateWhiteMarblePromptCount();
   updateKQ12PromptCount();
+  updateFaceT2IPromptCount();
 }
 
 function updateDurationUI() {
@@ -294,6 +331,10 @@ function updateWhiteMarblePromptCount() {
 
 function updateKQ12PromptCount() {
   $('#kq12PromptCount').textContent = String($('#kq12PromptInput').value.length);
+}
+
+function updateFaceT2IPromptCount() {
+  $('#faceT2IPromptCount').textContent = String($('#faceT2IPromptInput').value.length);
 }
 
 function aspectLabelFromDimensions(width, height) {
@@ -346,6 +387,15 @@ $('#kq12PromptInput').addEventListener('input', () => {
   updateKQ12PromptCount();
 });
 $('#kq12PromptInput').addEventListener('change', persistKQ12Config);
+
+['faceT2IPromptInput','faceT2IModelBranch','faceT2IAspectRatio','faceT2IHD'].forEach(id => {
+  const el = $('#' + id);
+  el.addEventListener('input', () => {
+    persistFaceT2IConfig();
+    if (id === 'faceT2IPromptInput') updateFaceT2IPromptCount();
+  });
+  el.addEventListener('change', persistFaceT2IConfig);
+});
 
 $('#instanceType').addEventListener('change', () => {
   localStorage.setItem(LS.inst, $('#instanceType').value);
