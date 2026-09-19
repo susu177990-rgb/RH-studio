@@ -11,7 +11,8 @@ const LS = {
   prompt: 'rhstudio.prompt',
   aspect: 'rhstudio.aspectRatio',
   quality: 'rhstudio.qualityPreset',
-  duration: 'rhstudio.duration'
+  duration: 'rhstudio.duration',
+  inst: 'rhstudio.instanceType'
 };
 
 const MEDIA = {
@@ -77,6 +78,7 @@ function persist() {
   localStorage.setItem(LS.aspect, $('#aspectRatio').value);
   localStorage.setItem(LS.quality, $('#qualityPreset').value);
   localStorage.setItem(LS.duration, $('#durationRange').value);
+  localStorage.setItem(LS.inst, $('#instanceType').value);
 }
 
 function loadConfig() {
@@ -85,12 +87,13 @@ function loadConfig() {
   $('#aspectRatio').value = localStorage.getItem(LS.aspect) || '9:16 (Portrait Widescreen)';
   $('#qualityPreset').value = localStorage.getItem(LS.quality) || '0.9';
   $('#durationRange').value = localStorage.getItem(LS.duration) || '10';
+  $('#instanceType').value = localStorage.getItem(LS.inst) || 'default';
   updateDurationUI();
   updatePromptCount();
   updateRatioChip();
 }
 
-['appId','promptInput','aspectRatio','qualityPreset','durationRange'].forEach(id => {
+['appId','promptInput','aspectRatio','qualityPreset','durationRange','instanceType'].forEach(id => {
   const el = $('#' + id);
   el.addEventListener('input', () => {
     persist();
@@ -581,7 +584,7 @@ async function runTask() {
       body:JSON.stringify({
         appId,
         nodeInfoList,
-        instanceType:'default',
+        instanceType:$('#instanceType').value || 'default',
         usePersonalQueue:'false'
       })
     });
@@ -714,7 +717,7 @@ $('#clearKey').onclick = () => {
 };
 
 $('#clearLocal').onclick = () => {
-  [LS.app,LS.prompt,LS.aspect,LS.quality,LS.duration].forEach(k => localStorage.removeItem(k));
+  [LS.app,LS.prompt,LS.aspect,LS.quality,LS.duration,LS.inst].forEach(k => localStorage.removeItem(k));
   Object.keys(state.files).forEach(slot => clearFile(slot));
   loadConfig();
   renderIdle();
