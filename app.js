@@ -25,13 +25,22 @@ const APPS = {
     subtitle: '8 Steps · Euler A',
     title: 'krea2 raw turbo dual mining 2 Claire',
     type: 'image'
+  },
+  'krea2-white-marble': {
+    key: 'krea2-white-marble',
+    appId: '2083580194556071937',
+    name: 'Krea2 turbo White_Marble-AIO（Portrait Master）',
+    subtitle: 'Portrait Master',
+    title: 'Krea2 turbo White_Marble-AIO（Portrait Master）',
+    type: 'image'
   }
 };
 
 const APP_KEYS = {
   video: 'minimax-h3',
   image: 'image-2mp',
-  imageUpscale: 'image-2mp-upscale'
+  imageUpscale: 'image-2mp-upscale',
+  whiteMarble: 'krea2-white-marble'
 };
 
 const RH_UPLOAD_DIRECT = 'https://www.runninghub.ai/openapi/v2/media/upload/binary';
@@ -48,6 +57,10 @@ const LS = {
   imageAspect: 'rhstudio.image2mp.aspectRatio',
   imageUpscalePrompt: 'rhstudio.image2mpUpscale.prompt',
   imageUpscaleAspect: 'rhstudio.image2mpUpscale.aspectRatio',
+  whiteMarblePrompt: 'rhstudio.whiteMarble.prompt',
+  whiteMarbleWidth: 'rhstudio.whiteMarble.width',
+  whiteMarbleHeight: 'rhstudio.whiteMarble.height',
+  whiteMarbleSeed: 'rhstudio.whiteMarble.seed',
   inst: 'rhstudio.instanceType',
   history: 'rhstudio.generationHistory'
 };
@@ -90,6 +103,15 @@ const imageState = {
 };
 
 const imageUpscaleState = {
+  task: null,
+  poll: null,
+  running: false,
+  outputUrl: '',
+  outputSourceUrl: '',
+  outputType: ''
+};
+
+const whiteMarbleState = {
   task: null,
   poll: null,
   running: false,
@@ -151,6 +173,7 @@ function setActiveApp(key, persist=true) {
   $('#workspaceVideo').classList.toggle('hidden', key !== APP_KEYS.video);
   $('#workspaceImage').classList.toggle('hidden', key !== APP_KEYS.image);
   $('#workspaceImageUpscale').classList.toggle('hidden', key !== APP_KEYS.imageUpscale);
+  $('#workspaceWhiteMarble').classList.toggle('hidden', key !== APP_KEYS.whiteMarble);
 
   const app = APPS[key];
   $('#currentAppTitle').textContent = app.title;
@@ -176,6 +199,13 @@ function persistImageUpscaleConfig() {
   localStorage.setItem(LS.imageUpscaleAspect, $('#imageUpscaleAspectRatio').value);
 }
 
+function persistWhiteMarbleConfig() {
+  localStorage.setItem(LS.whiteMarblePrompt, $('#whiteMarblePromptInput').value);
+  localStorage.setItem(LS.whiteMarbleWidth, $('#whiteMarbleWidth').value.trim());
+  localStorage.setItem(LS.whiteMarbleHeight, $('#whiteMarbleHeight').value.trim());
+  localStorage.setItem(LS.whiteMarbleSeed, $('#whiteMarbleSeed').value.trim());
+}
+
 function loadConfig() {
   $('#promptInput').value = localStorage.getItem(LS.prompt) || '';
   $('#aspectRatio').value = localStorage.getItem(LS.aspect) || '9:16 (Portrait Widescreen)';
@@ -190,12 +220,17 @@ function loadConfig() {
   $('#imageAspectRatio').value = localStorage.getItem(LS.imageAspect) || '9:16 (Portrait Widescreen)';
   $('#imageUpscalePromptInput').value = localStorage.getItem(LS.imageUpscalePrompt) || '';
   $('#imageUpscaleAspectRatio').value = localStorage.getItem(LS.imageUpscaleAspect) || '3:4 (Portrait Standard)';
+  $('#whiteMarblePromptInput').value = localStorage.getItem(LS.whiteMarblePrompt) || '';
+  $('#whiteMarbleWidth').value = localStorage.getItem(LS.whiteMarbleWidth) || '1080';
+  $('#whiteMarbleHeight').value = localStorage.getItem(LS.whiteMarbleHeight) || '1920';
+  $('#whiteMarbleSeed').value = localStorage.getItem(LS.whiteMarbleSeed) || '527633149753192';
   $('#instanceType').value = localStorage.getItem(LS.inst) || 'default';
 
   updateDurationUI();
   updatePromptCount();
   updateImagePromptCount();
   updateImageUpscalePromptCount();
+  updateWhiteMarblePromptCount();
 }
 
 function updateDurationUI() {
@@ -227,6 +262,18 @@ function updateImageUpscalePromptCount() {
   $('#imageUpscalePromptCount').textContent = String($('#imageUpscalePromptInput').value.length);
 }
 
+function updateWhiteMarblePromptCount() {
+  $('#whiteMarblePromptCount').textContent = String($('#whiteMarblePromptInput').value.length);
+}
+
+function aspectLabelFromDimensions(width, height) {
+  const w = Math.max(1, Math.round(Number(width) || 1));
+  const h = Math.max(1, Math.round(Number(height) || 1));
+  const gcd = (a,b) => b ? gcd(b, a % b) : a;
+  const d = gcd(w,h);
+  return (w / d) + ':' + (h / d);
+}
+
 ['promptInput','aspectRatio','qualityPreset','durationRange'].forEach(id => {
   const el = $('#' + id);
   el.addEventListener('input', () => {
@@ -253,6 +300,15 @@ function updateImageUpscalePromptCount() {
     if (id === 'imageUpscalePromptInput') updateImageUpscalePromptCount();
   });
   el.addEventListener('change', persistImageUpscaleConfig);
+});
+
+['whiteMarblePromptInput','whiteMarbleWidth','whiteMarbleHeight','whiteMarbleSeed'].forEach(id => {
+  const el = $('#' + id);
+  el.addEventListener('input', () => {
+    persistWhiteMarbleConfig();
+    if (id === 'whiteMarblePromptInput') updateWhiteMarblePromptCount();
+  });
+  el.addEventListener('change', persistWhiteMarbleConfig);
 });
 
 $('#instanceType').addEventListener('change', () => {
@@ -1321,6 +1377,207 @@ async function queryImageUpscaleTask(taskId) {
   }
 }
 
+function setWhiteMarbleStatus(status, meta='') {
+  const names = {
+    IDLE:'等待生成',
+    SUBMITTING:'提交任务',
+    QUEUED:'排队中',
+    RUNNING:'生成中',
+    SUCCESS:'生成完成',
+    FAILED:'生成失败'
+  };
+
+  statusClass($('#whiteMarbleStatusDot'), status);
+  $('#whiteMarbleStatusText').textContent = names[status] || status;
+  $('#whiteMarbleTaskMeta').textContent = meta || 'READY';
+}
+
+function setWhiteMarbleDownload(url='', type='') {
+  whiteMarbleState.outputSourceUrl = url || '';
+  whiteMarbleState.outputUrl = toMediaUrl(url || '');
+  whiteMarbleState.outputType = type || '';
+  $('#whiteMarbleDownloadBtn').disabled = !whiteMarbleState.outputUrl;
+}
+
+function renderWhiteMarbleIdle() {
+  setWhiteMarbleStatus('IDLE','READY');
+  setWhiteMarbleDownload();
+  $('#whiteMarbleResultArea').innerHTML =
+    '<div class="empty-state">' +
+      '<div class="empty-mark">＋</div>' +
+      '<strong>准备生成肖像</strong>' +
+      '<span>输入提示词并设置输出尺寸，生成结果会显示在这里。</span>' +
+    '</div>';
+}
+
+function renderWhiteMarbleLoading(status, taskId) {
+  setWhiteMarbleStatus(status, taskId ? ('TASK · ' + taskId) : 'PROCESSING');
+  setWhiteMarbleDownload();
+  $('#whiteMarbleResultArea').innerHTML =
+    '<div class="loading-state">' +
+      '<div class="loading-mark"></div>' +
+      '<strong>' + (status === 'QUEUED' ? '任务正在排队' : '图片正在生成') + '</strong>' +
+      '<span>状态每 3 秒自动刷新。</span>' +
+    '</div>';
+}
+
+function renderWhiteMarbleSuccess(task) {
+  const results = Array.isArray(task?.results) ? task.results : [];
+  const images = results.filter(isImage);
+  const primary = images[0] || results[0];
+
+  setWhiteMarbleStatus('SUCCESS', task?.taskId ? ('TASK · ' + task.taskId) : 'DONE');
+
+  if (!primary) {
+    setWhiteMarbleDownload();
+    $('#whiteMarbleResultArea').innerHTML =
+      '<div class="empty-state"><div class="empty-mark">✓</div><strong>任务完成</strong><span>没有返回可预览图片。</span></div>';
+    return;
+  }
+
+  const url = primary.url || '';
+  const type = String(primary.outputType || 'png').toLowerCase();
+  setWhiteMarbleDownload(url, type);
+
+  if (images.length > 1) {
+    $('#whiteMarbleResultArea').innerHTML =
+      '<div class="image-result-grid">' +
+        images.map(item => generatedImageTag(item.url || '')).join('') +
+      '</div>';
+    bindGeneratedImageFallbacks($('#whiteMarbleResultArea'));
+  } else if (url) {
+    $('#whiteMarbleResultArea').innerHTML = generatedImageTag(url);
+    bindGeneratedImageFallbacks($('#whiteMarbleResultArea'));
+  } else if (primary.text) {
+    $('#whiteMarbleResultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
+  }
+}
+
+function renderWhiteMarbleFailed(task, message) {
+  setWhiteMarbleStatus('FAILED', task?.taskId ? ('TASK · ' + task.taskId) : 'ERROR');
+  setWhiteMarbleDownload();
+  $('#whiteMarbleResultArea').innerHTML = failureHtml(task, message);
+}
+
+function getWhiteMarbleNodes(prompt, width, height, seed) {
+  return [
+    {nodeId:'7',fieldName:'width',fieldValue:String(width),description:null},
+    {nodeId:'7',fieldName:'height',fieldValue:String(height),description:null},
+    {nodeId:'6',fieldName:'seed',fieldValue:String(seed),description:null},
+    {nodeId:'7',fieldName:'batch_size',fieldValue:'1',description:null},
+    {nodeId:'5',fieldName:'text',fieldValue:prompt,description:null}
+  ];
+}
+
+async function runWhiteMarbleTask() {
+  if (whiteMarbleState.running) return;
+
+  if (!apiKey()) {
+    toast('请先在设置中保存 RunningHub API Key','bad');
+    openSettings();
+    return;
+  }
+
+  const prompt = $('#whiteMarblePromptInput').value.trim();
+  const width = $('#whiteMarbleWidth').value.trim();
+  const height = $('#whiteMarbleHeight').value.trim();
+  const seed = $('#whiteMarbleSeed').value.trim();
+
+  if (!prompt) {
+    toast('请输入图片提示词','bad');
+    $('#whiteMarblePromptInput').focus();
+    return;
+  }
+  if (!/^\d+$/.test(width) || Number(width) <= 0) {
+    toast('Width 必须是正整数','bad');
+    $('#whiteMarbleWidth').focus();
+    return;
+  }
+  if (!/^\d+$/.test(height) || Number(height) <= 0) {
+    toast('Height 必须是正整数','bad');
+    $('#whiteMarbleHeight').focus();
+    return;
+  }
+  if (!/^\d+$/.test(seed)) {
+    toast('Seed 必须是整数','bad');
+    $('#whiteMarbleSeed').focus();
+    return;
+  }
+
+  whiteMarbleState.running = true;
+  $('#whiteMarbleRunBtn').disabled = true;
+  $('.white-marble-generate-label').textContent = '提交任务…';
+  setWhiteMarbleDownload();
+  setWhiteMarbleStatus('SUBMITTING','RUNNINGHUB');
+
+  try {
+    const data = await runRHApp(
+      APPS[APP_KEYS.whiteMarble].appId,
+      getWhiteMarbleNodes(prompt, width, height, seed)
+    );
+    whiteMarbleState.task = data;
+
+    upsertHistory(APP_KEYS.whiteMarble, data, {
+      createdAt:Date.now(),
+      aspect:aspectLabelFromDimensions(width, height),
+      quality:width + '×' + height,
+      duration:'',
+      instance:instanceLabel($('#instanceType').value),
+      prompt:prompt.slice(0,120)
+    });
+
+    toast('图片生成任务已提交','good');
+
+    if (data.status === 'SUCCESS') {
+      renderWhiteMarbleSuccess(data);
+    } else if (data.status === 'FAILED') {
+      renderWhiteMarbleFailed(data);
+    } else {
+      renderWhiteMarbleLoading(data.status || 'RUNNING', data.taskId);
+      if (data.taskId) {
+        clearInterval(whiteMarbleState.poll);
+        whiteMarbleState.poll = setInterval(() => queryWhiteMarbleTask(data.taskId), 3000);
+      }
+    }
+  } catch (error) {
+    renderWhiteMarbleFailed(whiteMarbleState.task, error?.message || '运行失败');
+    toast(error?.message || '运行失败','bad');
+  } finally {
+    whiteMarbleState.running = false;
+    $('#whiteMarbleRunBtn').disabled = false;
+    $('.white-marble-generate-label').textContent = '开始生成';
+  }
+}
+
+async function queryWhiteMarbleTask(taskId) {
+  try {
+    const data = await queryRH(taskId);
+    whiteMarbleState.task = data;
+    const status = data.status || 'RUNNING';
+
+    upsertHistory(APP_KEYS.whiteMarble, data, {taskId});
+
+    if (status === 'SUCCESS') {
+      clearInterval(whiteMarbleState.poll);
+      whiteMarbleState.poll = null;
+      renderWhiteMarbleSuccess(data);
+      toast('图片生成完成','good');
+    } else if (status === 'FAILED') {
+      clearInterval(whiteMarbleState.poll);
+      whiteMarbleState.poll = null;
+      renderWhiteMarbleFailed(data);
+      toast('图片生成失败','bad');
+    } else {
+      renderWhiteMarbleLoading(status, data.taskId || taskId);
+    }
+  } catch (error) {
+    clearInterval(whiteMarbleState.poll);
+    whiteMarbleState.poll = null;
+    renderWhiteMarbleFailed(whiteMarbleState.task, error?.message || '任务查询失败');
+    toast(error?.message || '任务查询失败','bad');
+  }
+}
+
 function triggerDownload(outputState, button, prefix) {
   if (!outputState.outputUrl) return;
 
@@ -1356,6 +1613,8 @@ $('#imageRunBtn').onclick = runImageTask;
 $('#imageDownloadBtn').onclick = () => triggerDownload(imageState, $('#imageDownloadBtn'), 'rh-studio-image');
 $('#imageUpscaleRunBtn').onclick = runImageUpscaleTask;
 $('#imageUpscaleDownloadBtn').onclick = () => triggerDownload(imageUpscaleState, $('#imageUpscaleDownloadBtn'), 'rh-studio-image-upscale');
+$('#whiteMarbleRunBtn').onclick = runWhiteMarbleTask;
+$('#whiteMarbleDownloadBtn').onclick = () => triggerDownload(whiteMarbleState, $('#whiteMarbleDownloadBtn'), 'rh-studio-white-marble');
 
 $('#toggleKey').onclick = () => {
   const input = $('#apiKeyInput');
@@ -1391,6 +1650,10 @@ $('#clearLocal').onclick = () => {
     LS.imageAspect,
     LS.imageUpscalePrompt,
     LS.imageUpscaleAspect,
+    LS.whiteMarblePrompt,
+    LS.whiteMarbleWidth,
+    LS.whiteMarbleHeight,
+    LS.whiteMarbleSeed,
     LS.inst
   ].forEach(k => localStorage.removeItem(k));
 
@@ -1399,6 +1662,7 @@ $('#clearLocal').onclick = () => {
   renderVideoIdle();
   renderImageIdle();
   renderImageUpscaleIdle();
+  renderWhiteMarbleIdle();
   setActiveApp(APP_KEYS.video);
   toast('本地应用配置已重置');
 };
@@ -1409,6 +1673,7 @@ Object.keys(MEDIA).forEach(renderFileSlot);
 renderVideoIdle();
 renderImageIdle();
 renderImageUpscaleIdle();
+renderWhiteMarbleIdle();
 
 const params = new URLSearchParams(window.location.search);
 const requestedApp = params.get('app');
@@ -1428,6 +1693,9 @@ if (recoveryTaskId) {
   } else if (initialApp === APP_KEYS.imageUpscale) {
     renderImageUpscaleLoading('RUNNING', recoveryTaskId);
     queryImageUpscaleTask(recoveryTaskId);
+  } else if (initialApp === APP_KEYS.whiteMarble) {
+    renderWhiteMarbleLoading('RUNNING', recoveryTaskId);
+    queryWhiteMarbleTask(recoveryTaskId);
   } else {
     renderVideoLoading('RUNNING', recoveryTaskId);
     queryVideoTask(recoveryTaskId);
