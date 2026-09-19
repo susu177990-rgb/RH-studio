@@ -38,7 +38,7 @@
         <i id="sideDot" class="dot"></i>
         <div>
           <strong id="sideStatus">API Key 未配置</strong>
-          <span>RunningHub API V2</span>
+          <span>RUNNINGHUB API V2</span>
         </div>
       </div>
     </div>
@@ -47,102 +47,147 @@
   <main class="main">
     <header class="topbar glass">
       <div class="page-title">
-        <span>当前应用</span>
+        <span>CURRENT APP</span>
         <strong>MinimaxH3多参生视频 · 量化加速V3版</strong>
       </div>
       <div class="top-actions">
         <div class="live-pill"><i></i><span>ONLINE</span></div>
-        <button id="openSettings" class="settings-btn" type="button" aria-label="打开设置">
+        <button id="openSettings" class="settings-btn" type="button">
           <span>设置</span><b>⌘</b>
         </button>
       </div>
     </header>
 
-    <div class="content">
-      <section class="preview-panel glass">
-        <div class="preview-head">
-          <div>
-            <span class="eyebrow">GENERATED VIDEO</span>
-            <h1>生成预览</h1>
+    <div class="workspace">
+      <section class="stage glass">
+        <div class="stage-head">
+          <div class="stage-title">
+            <div class="eyebrow">OUTPUT MONITOR</div>
+            <h1>视频预览</h1>
           </div>
-          <div class="task-status">
-            <i id="statusDot" class="status-dot"></i>
-            <div><span id="statusText">等待生成</span><small id="taskMeta">READY</small></div>
+
+          <div class="stage-meta">
+            <div class="status-cluster">
+              <i id="statusDot" class="status-dot"></i>
+              <div>
+                <strong id="statusText">等待生成</strong>
+                <span id="taskMeta">READY</span>
+              </div>
+            </div>
+            <div class="ratio-chip"><span>输出画幅</span><b id="ratioChip">9:16</b></div>
           </div>
         </div>
 
-        <div id="resultArea" class="preview-stage">
-          <div class="preview-empty">
-            <div class="play-orb">▶</div>
-            <strong>生成结果会显示在这里</strong>
-            <span>添加参考素材，输入提示词，然后开始生成。</span>
+        <div id="resultArea" class="stage-view">
+          <div class="empty-state">
+            <div class="empty-mark">▶</div>
+            <strong>准备生成你的下一段视频</strong>
+            <span>添加参考素材并输入提示词，生成结果会直接显示在这里。</span>
           </div>
         </div>
       </section>
 
-      <section class="composer glass">
-        <div class="composer-main">
-          <label class="prompt-field">
-            <div class="field-title"><span>提示词</span><small>PROMPT</small></div>
-            <textarea id="promptInput" placeholder="描述你希望生成的视频内容、动作、镜头、风格与变化……"></textarea>
-          </label>
+      <section class="control-deck glass">
+        <div class="reference-rail">
+          <div class="deck-label">
+            <div><strong>参考素材</strong><span>PRIMARY REFERENCES</span></div>
+            <button id="openMoreRefs" class="ghost-link" type="button">更多参考 +</button>
+          </div>
+
+          <div class="reference-grid">
+            <button class="media-slot" data-slot="img141" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="slot-preview"><span>01</span><i>＋</i></div>
+              <div class="slot-copy"><strong>参考图 1</strong><small>IMAGE</small></div>
+              <b class="slot-clear hidden">×</b>
+            </button>
+
+            <button class="media-slot" data-slot="img142" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="slot-preview"><span>02</span><i>＋</i></div>
+              <div class="slot-copy"><strong>参考图 2</strong><small>IMAGE</small></div>
+              <b class="slot-clear hidden">×</b>
+            </button>
+
+            <button class="media-slot" data-slot="img143" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="slot-preview"><span>03</span><i>＋</i></div>
+              <div class="slot-copy"><strong>参考图 3</strong><small>IMAGE</small></div>
+              <b class="slot-clear hidden">×</b>
+            </button>
+
+            <button class="media-slot video-slot" data-slot="video164" type="button">
+              <input type="file" accept="video/*" hidden>
+              <div class="slot-preview"><span>V</span><i>＋</i></div>
+              <div class="slot-copy"><strong>参考视频</strong><small>VIDEO</small></div>
+              <b class="slot-clear hidden">×</b>
+            </button>
+          </div>
         </div>
 
-        <div class="composer-side">
-          <div class="field-title"><span>参考素材</span><small>REFERENCE</small></div>
-          <div id="referenceBox" class="reference-box">
-            <input id="referenceInput" type="file" accept="image/*,video/*" hidden>
-            <div class="reference-icon">＋</div>
-            <div class="reference-copy">
-              <strong id="referenceName">添加参考图片 / 视频</strong>
-              <span id="referenceHint">点击选择本地文件</span>
-            </div>
-            <button id="clearReference" class="mini-clear hidden" type="button">×</button>
+        <div class="prompt-zone">
+          <div class="deck-label">
+            <div><strong>提示词</strong><span>PROMPT</span></div>
+            <span id="promptCount" class="prompt-count">0</span>
           </div>
+          <textarea id="promptInput" placeholder="描述视频内容、角色、动作、镜头、节奏、光线、风格与参考素材的使用方式……"></textarea>
+        </div>
 
-          <div class="parameter-row">
-            <label>
-              <span>算力</span>
-              <select id="instanceType">
-                <option value="default">Default · 24G</option>
-                <option value="plus">Plus · 48G</option>
-                <option value="ultra">Ultra · 84G</option>
+        <div class="quick-zone">
+          <div class="quick-top">
+            <label class="quick-field">
+              <span>画幅</span>
+              <select id="aspectRatio">
+                <option value="1:1 (Square)">1:1</option>
+                <option value="2:3 (Portrait Photo)">2:3</option>
+                <option value="3:2 (Photo)">3:2</option>
+                <option value="3:4 (Portrait Standard)">3:4</option>
+                <option value="4:3 (Standard)">4:3</option>
+                <option value="9:16 (Portrait Widescreen)" selected>9:16</option>
+                <option value="16:9 (Widescreen)">16:9</option>
+                <option value="21:9 (Ultrawide)">21:9</option>
               </select>
             </label>
-            <label>
-              <span>队列</span>
-              <select id="personalQueue">
-                <option value="false">公共队列</option>
-                <option value="true">个人队列</option>
-              </select>
-            </label>
+
+            <button id="openAdvanced" class="advanced-btn" type="button">
+              <span>高级参数</span><b>···</b>
+            </button>
           </div>
 
-          <div class="run-row">
-            <div id="mappingState" class="mapping-state"><i></i><span>检查工作流配置…</span></div>
-            <button id="runBtn" class="generate-btn" type="button">开始生成 <span>↗</span></button>
+          <div id="mappingState" class="workflow-state">
+            <i></i>
+            <span>已绑定 RunningHub 工作流</span>
           </div>
+
+          <button id="runBtn" class="generate-btn" type="button">
+            <span class="generate-label">开始生成</span>
+            <b>↗</b>
+          </button>
         </div>
       </section>
     </div>
   </main>
 </div>
 
-<div id="settingsOverlay" class="settings-overlay hidden">
-  <button id="settingsBackdrop" class="settings-backdrop" aria-label="关闭设置"></button>
-  <aside class="settings-drawer glass">
+<div id="settingsOverlay" class="drawer-overlay hidden">
+  <button class="drawer-backdrop" data-close="settings" aria-label="关闭设置"></button>
+  <aside class="drawer glass">
     <div class="drawer-head">
-      <div><span>SETTINGS</span><h2>设置</h2></div>
-      <button id="closeSettings" class="close-btn" type="button">×</button>
+      <div><span>GLOBAL SETTINGS</span><h2>设置</h2></div>
+      <button class="drawer-close" data-close="settings" type="button">×</button>
     </div>
 
-    <section class="settings-section">
-      <div class="settings-title">
-        <div><strong>RunningHub API</strong><span>仅保存在当前浏览器</span></div>
+    <section class="drawer-section">
+      <div class="drawer-title">
+        <div><strong>RunningHub API</strong><span>API Key 仅保存在当前浏览器</span></div>
         <b id="settingsBadge">NOT CONFIGURED</b>
       </div>
-      <div class="key-status"><i id="settingsDot" class="dot"></i><span id="keyStatusText">尚未保存 API Key</span><code id="keyMask"></code></div>
-      <div class="key-input-row">
+      <div class="key-status">
+        <i id="settingsDot" class="dot"></i>
+        <span id="keyStatusText">尚未保存 API Key</span>
+        <code id="keyMask"></code>
+      </div>
+      <div class="key-row">
         <input id="apiKeyInput" class="input" type="password" autocomplete="off" placeholder="输入 RunningHub API Key">
         <button id="toggleKey" class="btn soft" type="button">显示</button>
         <button id="saveKey" class="btn primary" type="button">保存</button>
@@ -150,43 +195,133 @@
       <button id="clearKey" class="text-danger" type="button">清除 API Key</button>
     </section>
 
-    <section class="settings-section">
-      <div class="settings-title">
+    <section class="drawer-section">
+      <div class="drawer-title">
         <div><strong>当前应用</strong><span>MinimaxH3多参生视频 · 量化加速V3版</span></div>
       </div>
       <label class="setting-field">
         <span>AI App ID</span>
-        <input id="appId" class="input" placeholder="RunningHub AI App ID">
+        <input id="appId" class="input" value="2084320751339032577">
       </label>
     </section>
 
-    <section class="settings-section">
-      <div class="settings-title">
-        <div><strong>高级映射</strong><span>主界面不再显示 Node ID</span></div>
+    <section class="drawer-section compact">
+      <button id="clearLocal" class="btn soft full" type="button">重置本地应用配置</button>
+    </section>
+  </aside>
+</div>
+
+<div id="moreRefsOverlay" class="drawer-overlay hidden">
+  <button class="drawer-backdrop" data-close="moreRefs" aria-label="关闭更多参考"></button>
+  <aside class="drawer glass">
+    <div class="drawer-head">
+      <div><span>REFERENCE LIBRARY</span><h2>更多参考</h2></div>
+      <button class="drawer-close" data-close="moreRefs" type="button">×</button>
+    </div>
+
+    <div class="drawer-intro">这些输入对应当前工作流中的额外图片与音频节点。未使用时可以保持为空。</div>
+
+    <section class="extra-reference-list">
+      <button class="drawer-media" data-slot="audio144" type="button">
+        <input type="file" accept="audio/*" hidden>
+        <div class="drawer-media-icon">A1</div>
+        <div><strong>音频参考 1</strong><span>Node 144 · audio</span></div>
+        <b class="drawer-file-state">未选择</b>
+      </button>
+
+      <button class="drawer-media" data-slot="img161" type="button">
+        <input type="file" accept="image/*" hidden>
+        <div class="drawer-media-icon">I4</div>
+        <div><strong>额外图片 1</strong><span>Node 161 · image</span></div>
+        <b class="drawer-file-state">未选择</b>
+      </button>
+
+      <button class="drawer-media" data-slot="img175" type="button">
+        <input type="file" accept="image/*" hidden>
+        <div class="drawer-media-icon">I5</div>
+        <div><strong>额外图片 2</strong><span>Node 175 · image</span></div>
+        <b class="drawer-file-state">未选择</b>
+      </button>
+
+      <button class="drawer-media" data-slot="img176" type="button">
+        <input type="file" accept="image/*" hidden>
+        <div class="drawer-media-icon">I6</div>
+        <div><strong>额外图片 3</strong><span>Node 176 · image</span></div>
+        <b class="drawer-file-state">未选择</b>
+      </button>
+
+      <button class="drawer-media" data-slot="audio160" type="button">
+        <input type="file" accept="audio/*" hidden>
+        <div class="drawer-media-icon">A2</div>
+        <div><strong>音频参考 2</strong><span>Node 160 · audio</span></div>
+        <b class="drawer-file-state">未选择</b>
+      </button>
+
+      <button class="drawer-media" data-slot="audio189" type="button">
+        <input type="file" accept="audio/*" hidden>
+        <div class="drawer-media-icon">A3</div>
+        <div><strong>音频参考 3</strong><span>Node 189 · audio</span></div>
+        <b class="drawer-file-state">未选择</b>
+      </button>
+    </section>
+  </aside>
+</div>
+
+<div id="advancedOverlay" class="drawer-overlay hidden">
+  <button class="drawer-backdrop" data-close="advanced" aria-label="关闭高级参数"></button>
+  <aside class="drawer glass">
+    <div class="drawer-head">
+      <div><span>WORKFLOW CONTROLS</span><h2>高级参数</h2></div>
+      <button class="drawer-close" data-close="advanced" type="button">×</button>
+    </div>
+
+    <div class="drawer-intro">以下名称按工作流节点编号展示，避免对未在 API 文档中说明含义的参数做错误命名。</div>
+
+    <section class="drawer-section">
+      <div class="drawer-title"><div><strong>运行资源</strong><span>RunningHub 实例与队列</span></div></div>
+      <div class="settings-grid two">
+        <label class="setting-field"><span>实例类型</span>
+          <select id="instanceType">
+            <option value="default">Default · 24G</option>
+            <option value="plus">Plus · 48G</option>
+            <option value="ultra">Ultra · 84G</option>
+          </select>
+        </label>
+        <label class="setting-field"><span>队列</span>
+          <select id="personalQueue">
+            <option value="false">公共队列</option>
+            <option value="true">个人队列</option>
+          </select>
+        </label>
       </div>
-      <div class="mapping-grid">
-        <label class="setting-field">
-          <span>提示词 Node ID</span>
-          <input id="promptNodeId" class="input" placeholder="Node ID">
-        </label>
-        <label class="setting-field">
-          <span>提示词 Field</span>
-          <input id="promptFieldName" class="input" placeholder="text / prompt / value">
-        </label>
-        <label class="setting-field">
-          <span>参考素材 Node ID</span>
-          <input id="referenceNodeId" class="input" placeholder="可选">
-        </label>
-        <label class="setting-field">
-          <span>参考素材 Field</span>
-          <input id="referenceFieldName" class="input" placeholder="image / video / file">
-        </label>
-      </div>
-      <p class="settings-note">这里只需要配置一次。参考素材不是工作流必需项时，参考素材映射可以留空。</p>
     </section>
 
-    <section class="settings-section compact">
-      <button id="clearLocal" class="btn soft full" type="button">清除本地应用配置</button>
+    <section class="drawer-section">
+      <div class="drawer-title"><div><strong>数值参数</strong><span>使用 API 示例中的默认值</span></div></div>
+      <div class="settings-grid three">
+        <label class="setting-field"><span>Node 186 · value</span><input id="param186" class="input" type="number" step="1" value="10"></label>
+        <label class="setting-field"><span>Node 147 · value</span><input id="param147" class="input" type="number" step="0.1" value="0.4"></label>
+        <label class="setting-field"><span>Node 192 · value</span><input id="param192" class="input" type="number" step="1" value="8"></label>
+      </div>
+    </section>
+
+    <section class="drawer-section">
+      <div class="drawer-title"><div><strong>LoRA</strong><span>Node 159</span></div></div>
+      <div class="settings-grid two">
+        <label class="setting-field"><span>lora_name</span><input id="loraName" class="input" value="MysticXXX_MMH3-V1.safetensors"></label>
+        <label class="setting-field"><span>strength_model</span><input id="loraStrength" class="input" type="number" step="0.1" value="0.4"></label>
+      </div>
+    </section>
+
+    <section class="drawer-section">
+      <div class="drawer-title"><div><strong>布尔节点</strong><span>默认均为 false</span></div></div>
+      <div class="toggle-grid">
+        <label><span>Node 171</span><input id="bool171" type="checkbox"><i></i></label>
+        <label><span>Node 163</span><input id="bool163" type="checkbox"><i></i></label>
+        <label><span>Node 185</span><input id="bool185" type="checkbox"><i></i></label>
+        <label><span>Node 169</span><input id="bool169" type="checkbox"><i></i></label>
+        <label><span>Node 158</span><input id="bool158" type="checkbox"><i></i></label>
+      </div>
     </section>
   </aside>
 </div>
