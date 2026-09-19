@@ -23,16 +23,16 @@ const LS = {
 };
 
 const MEDIA = {
-  img141: { nodeId:'141', fieldName:'image', kind:'image' },
-  img142: { nodeId:'142', fieldName:'image', kind:'image' },
-  img143: { nodeId:'143', fieldName:'image', kind:'image' },
-  audio144: { nodeId:'144', fieldName:'audio', kind:'audio' },
-  video164: { nodeId:'164', fieldName:'video', kind:'video' },
-  img161: { nodeId:'161', fieldName:'image', kind:'image' },
-  img175: { nodeId:'175', fieldName:'image', kind:'image' },
-  img176: { nodeId:'176', fieldName:'image', kind:'image' },
-  audio160: { nodeId:'160', fieldName:'audio', kind:'audio' },
-  audio189: { nodeId:'189', fieldName:'audio', kind:'audio' }
+  img141: { nodeId:'141', fieldName:'image', kind:'image', label:'参考图 1' },
+  img142: { nodeId:'142', fieldName:'image', kind:'image', label:'参考图 2' },
+  img143: { nodeId:'143', fieldName:'image', kind:'image', label:'参考图 3' },
+  img161: { nodeId:'161', fieldName:'image', kind:'image', label:'参考图 4' },
+  img175: { nodeId:'175', fieldName:'image', kind:'image', label:'参考图 5' },
+  img176: { nodeId:'176', fieldName:'image', kind:'image', label:'参考图 6' },
+  video164: { nodeId:'164', fieldName:'video', kind:'video', label:'参考视频' },
+  audio144: { nodeId:'144', fieldName:'audio', kind:'audio', label:'音频 1' },
+  audio160: { nodeId:'160', fieldName:'audio', kind:'audio', label:'音频 2' },
+  audio189: { nodeId:'189', fieldName:'audio', kind:'audio', label:'音频 3' }
 };
 
 const state = {
@@ -40,7 +40,9 @@ const state = {
   objectUrls: {},
   task: null,
   poll: null,
-  running: false
+  running: false,
+  outputUrl: '',
+  outputType: ''
 };
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -153,30 +155,35 @@ function updateRatioChip() {
   $('#ratioChip').textContent = value.split(' ')[0] || '9:16';
 }
 
-function openDrawer(name) {
-  const map = {
-    settings: '#settingsOverlay',
-    moreRefs: '#moreRefsOverlay',
-    advanced: '#advancedOverlay'
-  };
-  Object.values(map).forEach(sel => $(sel).classList.add('hidden'));
-  $(map[name]).classList.remove('hidden');
+function openOverlay(selector) {
+  $$('.drawer-overlay').forEach(el => el.classList.add('hidden'));
+  $(selector).classList.remove('hidden');
   document.body.style.overflow = 'hidden';
-  if (name === 'settings') $('#apiKeyInput').value = '';
 }
 
-function closeDrawers() {
+function closeOverlays() {
   $$('.drawer-overlay').forEach(el => el.classList.add('hidden'));
   document.body.style.overflow = '';
 }
 
-$('#openSettings').onclick = () => openDrawer('settings');
-$('#openMoreRefs').onclick = () => openDrawer('moreRefs');
-$('#openAdvanced').onclick = () => openDrawer('advanced');
-$$('[data-close]').forEach(el => el.onclick = closeDrawers);
+$('#openSettings').onclick = () => {
+  $('#apiKeyInput').value = '';
+  openOverlay('#settingsOverlay');
+};
+$('#openAdvanced').onclick = () => openOverlay('#advancedOverlay');
+$$('[data-close],[data-close-advanced]').forEach(el => el.onclick = closeOverlays);
 window.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeDrawers();
+  if (e.key === 'Escape') closeOverlays();
 });
+
+function clearFile(slot, rerender=true) {
+  if (state.objectUrls[slot]) {
+    URL.revokeObjectURL(state.objectUrls[slot]);
+    delete state.objectUrls[slot];
+  }
+  delete state.files[slot];
+  if (rerender) renderFileSlot(slot);
+}
 
 function setFile(slot, file) {
   clearFile(slot, false);
@@ -188,49 +195,53 @@ function setFile(slot, file) {
   renderFileSlot(slot);
 }
 
-function clearFile(slot, rerender=true) {
-  if (state.objectUrls[slot]) {
-    URL.revokeObjectURL(state.objectUrls[slot]);
-    delete state.objectUrls[slot];
-  }
-  delete state.files[slot];
-  if (rerender) renderFileSlot(slot);
-}
-
 function renderFileSlot(slot) {
+  const config = MEDIA[slot];
   const file = state.files[slot];
-  const primary = $('.media-slot[data-slot="' + slot + '"]');
-  const drawer = $('.drawer-media[data-slot="' + slot + '"]');
+  const el = $('.upload-slot[data-slot="' + slot + '"]');
+  if (!el) return;
 
-  if (primary) {
-    primary.classList.toggle('has-file', !!file);
-    const preview = primary.querySelector('.slot-preview');
-    const clear = primary.querySelector('.slot-clear');
-    clear.classList.toggle('hidden', !file);
+  el.classList.toggle('has-file', !!file);
+  const clear = el.querySelector('.slot-clear');
+  clear?.classList.toggle('hidden', !file);
 
-    if (!file) {
-      const label = slot === 'video164' ? 'V' : String(['img141','img142','img143'].indexOf(slot) + 1).padStart(2,'0');
-      preview.innerHTML = '<span>' + label + '</span><i>＋</i>';
-      primary.querySelector('.slot-copy strong').textContent =
-        slot === 'video164' ? '参考视频' : '参考图 ' + (['img141','img142','img143'].indexOf(slot) + 1);
+  if (config.kind === 'image') {
+    const preview = el.querySelector('.media-preview');
+    const caption = el.querySelector('.media-caption strong');
+    const index = ['img141','img142','img143','img161','img175','img176'].indexOf(slot) + 1;
+    if (file) {
+      preview.innerHTML = '<img src="' + esc(state.objectUrls[slot]) + '" alt="">';
+      caption.textContent = file.name;
     } else {
-      const url = state.objectUrls[slot];
-      if (file.type.startsWith('image/')) {
-        preview.innerHTML = '<img src="' + esc(url) + '" alt="">';
-      } else if (file.type.startsWith('video/')) {
-        preview.innerHTML = '<video src="' + esc(url) + '" muted playsinline></video>';
-      }
-      primary.querySelector('.slot-copy strong').textContent = file.name;
+      preview.innerHTML = '<span>' + String(index).padStart(2,'0') + '</span><i>＋</i>';
+      caption.textContent = config.label;
     }
   }
 
-  if (drawer) {
-    drawer.classList.toggle('has-file', !!file);
-    drawer.querySelector('.drawer-file-state').textContent = file ? file.name : '未选择';
+  if (config.kind === 'video') {
+    const preview = el.querySelector('.video-reference-preview');
+    const title = el.querySelector('.video-reference-copy strong');
+    const subtitle = el.querySelector('.video-reference-copy small');
+    if (file) {
+      preview.innerHTML = '<video src="' + esc(state.objectUrls[slot]) + '" muted playsinline preload="metadata"></video>';
+      title.textContent = file.name;
+      subtitle.textContent = '已选择参考视频';
+    } else {
+      preview.innerHTML = '<span>VIDEO</span><i>＋</i>';
+      title.textContent = '参考视频';
+      subtitle.textContent = '支持上传本地视频作为结构 / 动作 / 镜头参考';
+    }
+  }
+
+  if (config.kind === 'audio') {
+    const title = el.querySelector('strong');
+    const small = el.querySelector('small');
+    title.textContent = file ? file.name : config.label;
+    small.textContent = file ? '已选择' : 'AUDIO';
   }
 }
 
-$$('.media-slot,.drawer-media').forEach(el => {
+$$('.upload-slot').forEach(el => {
   const slot = el.dataset.slot;
   const input = el.querySelector('input[type="file"]');
 
@@ -246,25 +257,12 @@ $$('.media-slot,.drawer-media').forEach(el => {
   });
 
   input.addEventListener('click', e => e.stopPropagation());
-
   input.addEventListener('change', e => {
     e.stopPropagation();
     const file = input.files[0];
     if (file) setFile(slot, file);
   });
 });
-
-function formatBytes(bytes) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '';
-  const units = ['B','KB','MB','GB'];
-  let n = bytes;
-  let i = 0;
-  while (n >= 1024 && i < units.length - 1) {
-    n /= 1024;
-    i++;
-  }
-  return n.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
-}
 
 async function uploadFile(file, key) {
   const fd = new FormData();
@@ -292,7 +290,7 @@ async function uploadFile(file, key) {
 function setStatus(status, meta='') {
   const dot = $('#statusDot');
   dot.className = 'status-dot';
-  if (status === 'RUNNING' || status === 'QUEUED' || status === 'UPLOADING' || status === 'SUBMITTING') dot.classList.add('running');
+  if (['RUNNING','QUEUED','UPLOADING','SUBMITTING'].includes(status)) dot.classList.add('running');
   if (status === 'SUCCESS') dot.classList.add('success');
   if (status === 'FAILED') dot.classList.add('failed');
 
@@ -310,8 +308,15 @@ function setStatus(status, meta='') {
   $('#taskMeta').textContent = meta || 'READY';
 }
 
+function setDownload(url='', type='') {
+  state.outputUrl = url || '';
+  state.outputType = type || '';
+  $('#downloadBtn').disabled = !state.outputUrl;
+}
+
 function renderIdle() {
   setStatus('IDLE','READY');
+  setDownload();
   $('#resultArea').innerHTML =
     '<div class="empty-state">' +
       '<div class="empty-mark">▶</div>' +
@@ -322,6 +327,7 @@ function renderIdle() {
 
 function renderLoading(status, taskId) {
   setStatus(status, taskId ? ('TASK · ' + taskId) : 'PROCESSING');
+  setDownload();
   $('#resultArea').innerHTML =
     '<div class="loading-state">' +
       '<div class="loading-mark"></div>' +
@@ -348,6 +354,7 @@ function renderSuccess(task) {
   setStatus('SUCCESS', task?.taskId ? ('TASK · ' + task.taskId) : 'DONE');
 
   if (!primary) {
+    setDownload();
     $('#resultArea').innerHTML =
       '<div class="empty-state"><div class="empty-mark">✓</div><strong>任务完成</strong><span>没有返回可预览媒体。</span></div>';
     return;
@@ -355,34 +362,22 @@ function renderSuccess(task) {
 
   const url = primary.url || '';
   const type = String(primary.outputType || 'output').toLowerCase();
-  let media = '';
+  setDownload(url, type);
 
   if (isVideo(primary) && url) {
-    media = '<video src="' + esc(url) + '" controls playsinline autoplay></video>';
+    $('#resultArea').innerHTML = '<video src="' + esc(url) + '" controls playsinline autoplay></video>';
   } else if (isImage(primary) && url) {
-    media = '<img src="' + esc(url) + '" alt="generated output">';
+    $('#resultArea').innerHTML = '<img src="' + esc(url) + '" alt="generated output">';
   } else if (primary.text) {
-    media = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
+    $('#resultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
   } else {
-    media = '<div class="file-state"><strong>' + esc(type.toUpperCase()) + '</strong></div>';
+    $('#resultArea').innerHTML = '<div class="file-state"><strong>' + esc(type.toUpperCase()) + '</strong></div>';
   }
-
-  let meta =
-    '<div class="output-meta">' +
-      '<span>' + esc(type || 'output') +
-      (results.length > 1 ? (' · ' + results.length + ' 个输出') : '') +
-      ' · 链接有效期 24h</span>';
-
-  if (url) {
-    meta += '<a href="' + esc(url) + '" target="_blank" rel="noreferrer">打开原文件 ↗</a>';
-  }
-
-  meta += '</div>';
-  $('#resultArea').innerHTML = media + meta;
 }
 
 function renderFailed(task, message) {
   setStatus('FAILED', task?.taskId ? ('TASK · ' + task.taskId) : 'ERROR');
+  setDownload();
 
   let reason = message || task?.errorMessage || '';
   if (!reason && task?.failedReason) {
@@ -418,7 +413,7 @@ async function runTask() {
   const key = apiKey();
   if (!key) {
     toast('请先在设置中保存 RunningHub API Key','bad');
-    openDrawer('settings');
+    openOverlay('#settingsOverlay');
     return;
   }
 
@@ -435,6 +430,7 @@ async function runTask() {
   state.running = true;
   $('#runBtn').disabled = true;
   $('.generate-label').textContent = '准备任务…';
+  setDownload();
 
   try {
     const uploadValues = {};
@@ -544,7 +540,45 @@ async function queryTask(taskId) {
   }
 }
 
+async function downloadOutput() {
+  if (!state.outputUrl) return;
+
+  const btn = $('#downloadBtn');
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span>下载中</span><b>↓</b>';
+
+  try {
+    const res = await fetch(state.outputUrl);
+    if (!res.ok) throw new Error('download failed');
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const ext = (state.outputType || 'mp4').replace(/[^a-z0-9]/gi,'') || 'mp4';
+    a.href = objectUrl;
+    a.download = 'rh-studio-output.' + ext;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+    toast('已开始下载','good');
+  } catch {
+    const a = document.createElement('a');
+    a.href = state.outputUrl;
+    a.target = '_blank';
+    a.rel = 'noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast('已打开原文件，请在浏览器中保存');
+  } finally {
+    btn.disabled = !state.outputUrl;
+    btn.innerHTML = original;
+  }
+}
+
 $('#runBtn').onclick = runTask;
+$('#downloadBtn').onclick = downloadOutput;
 
 $('#toggleKey').onclick = () => {
   const input = $('#apiKeyInput');
