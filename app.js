@@ -115,8 +115,10 @@ function updatePromptCount() {
 }
 
 function updateRatioChip() {
+  const el = $('#ratioChip');
+  if (!el) return;
   const value = $('#aspectRatio').value || '';
-  $('#ratioChip').textContent = value.split(' ')[0] || '9:16';
+  el.textContent = value.split(' ')[0] || '9:16';
 }
 
 function openSettings() {
