@@ -879,6 +879,60 @@ $('#clearHistory').onclick = () => {
   toast('生成记录已清空');
 };
 
+async function importHistoryTask() {
+  const input = $('#historyTaskInput');
+  const taskId = String(input?.value || '').trim();
+  if (!taskId) {
+    toast('请输入 RunningHub Task ID', 'bad');
+    input?.focus();
+    return;
+  }
+  if (!/^\d{10,}$/.test(taskId)) {
+    toast('Task ID 格式不正确', 'bad');
+    input?.focus();
+    return;
+  }
+  if (!apiKey()) {
+    closeDrawers();
+    openSettings();
+    toast('请先配置 RunningHub API Key', 'bad');
+    return;
+  }
+
+  const button = $('#importHistoryTask');
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = '查询中…';
+
+  try {
+    const res = await fetch('/api/rh/query', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-rh-key':apiKey()
+      },
+      body:JSON.stringify({taskId})
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('查询失败 (' + res.status + ')'));
+
+    upsertHistory(data,{taskId,createdAt:Date.now()});
+    input.value = '';
+    renderHistory();
+    toast('任务已加入生成记录', 'good');
+  } catch (error) {
+    toast(error?.message || '导入任务失败', 'bad');
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+  }
+}
+
+$('#importHistoryTask').onclick = importHistoryTask;
+$('#historyTaskInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') importHistoryTask();
+});
+
 $('#historyList').addEventListener('click', e => {
   const button = e.target.closest('[data-history-task]');
   if (!button) return;
