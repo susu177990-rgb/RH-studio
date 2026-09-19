@@ -88,7 +88,12 @@ function loadConfig() {
   $('#promptInput').value = localStorage.getItem(LS.prompt) || '';
   $('#aspectRatio').value = localStorage.getItem(LS.aspect) || '9:16 (Portrait Widescreen)';
   $('#qualityPreset').value = localStorage.getItem(LS.quality) || '0.9';
-  $('#durationRange').value = localStorage.getItem(LS.duration) || '10';
+
+  const savedDuration = Number(localStorage.getItem(LS.duration) || 10);
+  const normalizedDuration = Math.min(15, Math.max(5, Number.isFinite(savedDuration) ? savedDuration : 10));
+  $('#durationRange').value = String(normalizedDuration);
+  localStorage.setItem(LS.duration, String(normalizedDuration));
+
   $('#instanceType').value = localStorage.getItem(LS.inst) || 'default';
   updateDurationUI();
   updatePromptCount();
@@ -111,9 +116,18 @@ function loadConfig() {
 
 function updateDurationUI() {
   const range = $('#durationRange');
-  const value = Number(range.value || 10);
+  const min = Number(range.min || 5);
+  const max = Number(range.max || 15);
+  const raw = Number(range.value || 10);
+  const value = Math.min(max, Math.max(min, Number.isFinite(raw) ? raw : 10));
+
+  if (Number(range.value) !== value) {
+    range.value = String(value);
+    localStorage.setItem(LS.duration, String(value));
+  }
+
   $('#durationValue').textContent = value + 's';
-  const pct = ((value - Number(range.min)) / (Number(range.max) - Number(range.min))) * 100;
+  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
   range.style.background = 'linear-gradient(90deg,var(--accent) ' + pct + '%,rgba(255,255,255,.08) ' + pct + '%)';
 }
 
