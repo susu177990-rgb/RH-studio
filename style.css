@@ -260,3 +260,5 @@ select,.input{width:100%;height:38px;border:1px solid var(--line);border-radius:
 .operation-panel .duration-scale{margin-top:4px;font-size:5.5px}
 .operation-foot{margin-top:auto}
 .operation-panel .generate-btn{height:41px;border-radius:12px}
+
+/* Duration range: 1–15 seconds */
