@@ -68,8 +68,9 @@ html,body.history-page-body{height:auto;min-height:100%;overflow:auto}
 @media(max-width:560px){
   .history-title>div span{display:none}
   .history-actions{gap:5px}
-  .history-action-btn{padding:0 8px;font-size:0}
-  .history-action-btn b{font-size:10px}
+  .history-archive-btn{padding:0 8px;font-size:0}
+  .history-archive-btn b{font-size:10px}
+  #importHistoryTask{display:none}
   .history-back{padding:0 10px}
   .history-back{font-size:0}
   .history-masonry{columns:1}
