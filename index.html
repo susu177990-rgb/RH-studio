@@ -57,6 +57,15 @@
           </div>
           <i class="active-dot"></i>
         </button>
+
+        <button class="app-item" data-app="kq12-portrait" type="button">
+          <div class="app-icon">KQ</div>
+          <div class="app-copy">
+            <strong>KQ12Z真实人像-超绝美感文生图</strong>
+            <span>Prompt Only</span>
+          </div>
+          <i class="active-dot"></i>
+        </button>
       </div>
     </div>
 
@@ -519,6 +528,79 @@
 
         <button id="whiteMarbleRunBtn" class="generate-btn image-generate-btn" type="button">
           <span class="white-marble-generate-label">开始生成</span><b>↗</b>
+        </button>
+      </section>
+    </div>
+
+
+    <div id="workspaceKQ12" class="workspace app-workspace image-workspace hidden">
+      <div class="image-workspace-main">
+        <section class="image-prompt-panel glass">
+          <div class="panel-head">
+            <div>
+              <span>PROMPT INPUT</span>
+              <h2>提示词</h2>
+            </div>
+            <b id="kq12PromptCount">0</b>
+          </div>
+          <textarea id="kq12PromptInput" placeholder="描述人物、五官、妆造、服装、场景、镜头、光线、氛围与整体真实人像风格……"></textarea>
+          <div class="image-app-note">
+            <i></i>
+            <div>
+              <strong>KQ12Z真实人像-超绝美感文生图</strong>
+              <span>当前 AI App 仅开放 Prompt 输入。</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="output-panel glass">
+          <div class="panel-head output-head">
+            <div>
+              <span>IMAGE OUTPUT</span>
+              <h2>图片预览</h2>
+            </div>
+            <div class="output-head-actions">
+              <div class="status-pill">
+                <i id="kq12StatusDot" class="status-dot"></i>
+                <div><strong id="kq12StatusText">等待生成</strong><span id="kq12TaskMeta">READY</span></div>
+              </div>
+              <button id="kq12DownloadBtn" class="download-btn" type="button" disabled>
+                <span>下载</span><b>↓</b>
+              </button>
+            </div>
+          </div>
+
+          <div class="image-preview-shell">
+            <div id="kq12ResultArea" class="image-preview-stage">
+              <div class="empty-state">
+                <div class="empty-mark">＋</div>
+                <strong>准备生成图片</strong>
+                <span>输入提示词后即可开始生成。</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="image-control-panel kq12-control-panel glass">
+        <div class="image-control-copy">
+          <span>GENERATION CONTROL</span>
+          <h2>操作区</h2>
+          <small>RunningHub AI App · 2074694253623726082</small>
+        </div>
+
+        <div class="image-fixed-field">
+          <span>输入模式</span>
+          <strong>Prompt Only</strong>
+        </div>
+
+        <div class="image-workflow-state">
+          <i></i>
+          <span>Node 216 · text</span>
+        </div>
+
+        <button id="kq12RunBtn" class="generate-btn image-generate-btn" type="button">
+          <span class="kq12-generate-label">开始生成</span><b>↗</b>
         </button>
       </section>
     </div>
