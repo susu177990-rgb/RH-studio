@@ -9,6 +9,10 @@
     {
       "source": "/rh-media/:path*",
       "destination": "https://rh-images-1252422369.cos.ap-beijing.myqcloud.com/:path*"
+    },
+    {
+      "source": "/rh-media-hk/:path*",
+      "destination": "https://rh-hk-images-1252422369.cos.ap-hongkong.myqcloud.com/:path*"
     }
   ]
 }
