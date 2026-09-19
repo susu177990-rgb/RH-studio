@@ -2,6 +2,8 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 
 const APP_ID = '2084320751339032577';
+const RH_UPLOAD_DIRECT = 'https://www.runninghub.ai/openapi/v2/media/upload/binary';
+const MAX_RH_UPLOAD_BYTES = 30 * 1024 * 1024;
 
 const LS = {
   key: 'rhstudio.apiKey',
@@ -150,6 +152,10 @@ function clearFile(slot, rerender=true) {
 function setFile(slot, file) {
   clearFile(slot, false);
   if (!file) return;
+  if (file.size > MAX_RH_UPLOAD_BYTES) {
+    toast('单个文件不能超过 30MB：' + file.name, 'bad');
+    return;
+  }
   state.files[slot] = file;
   if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
     state.objectUrls[slot] = URL.createObjectURL(file);
@@ -225,7 +231,62 @@ $$('.upload-slot').forEach(el => {
   });
 });
 
-async function uploadFile(file, key) {
+function extractUploadValue(data) {
+  return (
+    data?.data?.fileName ||
+    data?.data?.download_url ||
+    data?.fileName ||
+    data?.download_url ||
+    ''
+  );
+}
+
+async function parseUploadResponse(res) {
+  const data = await res.json().catch(() => ({}));
+  const apiFailed = data?.code != null && Number(data.code) !== 0;
+  if (!res.ok || apiFailed) {
+    throw new Error(
+      data?.message ||
+      data?.msg ||
+      data?.errorMessage ||
+      data?.error ||
+      ('RunningHub 上传失败 (' + res.status + ')')
+    );
+  }
+
+  const value = extractUploadValue(data);
+  if (!value) throw new Error('RunningHub 上传接口未返回可用文件值');
+  return value;
+}
+
+async function uploadViaRewrite(file, key) {
+  const fd = new FormData();
+  fd.append('file', file, file.name);
+
+  const res = await fetch('/rh-upload', {
+    method:'POST',
+    headers:{ Authorization:'Bearer ' + key },
+    body:fd
+  });
+
+  return parseUploadResponse(res);
+}
+
+async function uploadDirect(file, key) {
+  const fd = new FormData();
+  fd.append('file', file, file.name);
+
+  const res = await fetch(RH_UPLOAD_DIRECT, {
+    method:'POST',
+    mode:'cors',
+    headers:{ Authorization:'Bearer ' + key },
+    body:fd
+  });
+
+  return parseUploadResponse(res);
+}
+
+async function uploadViaLegacyFunction(file, key) {
   const fd = new FormData();
   fd.append('file', file, file.name);
 
@@ -238,14 +299,36 @@ async function uploadFile(file, key) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || ('文件上传失败 (' + res.status + ')'));
 
-  const value =
-    data?.data?.fileName ||
-    data?.data?.download_url ||
-    data?.fileName ||
-    data?.download_url;
-
+  const value = extractUploadValue(data);
   if (!value) throw new Error('RunningHub 上传接口未返回可用文件值');
   return value;
+}
+
+async function uploadFile(file, key) {
+  if (file.size > MAX_RH_UPLOAD_BYTES) {
+    throw new Error('单个文件不能超过 30MB：' + file.name);
+  }
+
+  try {
+    return await uploadViaRewrite(file, key);
+  } catch (rewriteError) {
+    try {
+      return await uploadDirect(file, key);
+    } catch (directError) {
+      if (file.size < 4 * 1024 * 1024) {
+        try {
+          return await uploadViaLegacyFunction(file, key);
+        } catch {}
+      }
+
+      const reason =
+        directError?.message ||
+        rewriteError?.message ||
+        '未知上传错误';
+
+      throw new Error('文件直传 RunningHub 失败：' + reason);
+    }
+  }
 }
 
 function setStatus(status, meta='') {
