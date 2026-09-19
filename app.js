@@ -1614,6 +1614,181 @@ async function queryWhiteMarbleTask(taskId) {
   }
 }
 
+function setKQ12Status(status, meta='') {
+  const names = {
+    IDLE:'等待生成',
+    SUBMITTING:'提交任务',
+    QUEUED:'排队中',
+    RUNNING:'生成中',
+    SUCCESS:'生成完成',
+    FAILED:'生成失败'
+  };
+
+  statusClass($('#kq12StatusDot'), status);
+  $('#kq12StatusText').textContent = names[status] || status;
+  $('#kq12TaskMeta').textContent = meta || 'READY';
+}
+
+function setKQ12Download(url='', type='') {
+  kq12State.outputSourceUrl = url || '';
+  kq12State.outputUrl = toMediaUrl(url || '');
+  kq12State.outputType = type || '';
+  $('#kq12DownloadBtn').disabled = !kq12State.outputUrl;
+}
+
+function renderKQ12Idle() {
+  setKQ12Status('IDLE','READY');
+  setKQ12Download();
+  $('#kq12ResultArea').innerHTML =
+    '<div class="empty-state">' +
+      '<div class="empty-mark">＋</div>' +
+      '<strong>准备生成图片</strong>' +
+      '<span>输入提示词后即可开始生成。</span>' +
+    '</div>';
+}
+
+function renderKQ12Loading(status, taskId) {
+  setKQ12Status(status, taskId ? ('TASK · ' + taskId) : 'PROCESSING');
+  setKQ12Download();
+  $('#kq12ResultArea').innerHTML =
+    '<div class="loading-state">' +
+      '<div class="loading-mark"></div>' +
+      '<strong>' + (status === 'QUEUED' ? '任务正在排队' : '图片正在生成') + '</strong>' +
+      '<span>状态每 3 秒自动刷新。</span>' +
+    '</div>';
+}
+
+function renderKQ12Success(task) {
+  const results = Array.isArray(task?.results) ? task.results : [];
+  const images = results.filter(isImage);
+  const primary = images[0] || results[0];
+
+  setKQ12Status('SUCCESS', task?.taskId ? ('TASK · ' + task.taskId) : 'DONE');
+
+  if (!primary) {
+    setKQ12Download();
+    $('#kq12ResultArea').innerHTML =
+      '<div class="empty-state"><div class="empty-mark">✓</div><strong>任务完成</strong><span>没有返回可预览图片。</span></div>';
+    return;
+  }
+
+  const url = primary.url || '';
+  const type = String(primary.outputType || 'png').toLowerCase();
+  setKQ12Download(url, type);
+
+  if (images.length > 1) {
+    $('#kq12ResultArea').innerHTML =
+      '<div class="image-result-grid">' +
+        images.map(item => generatedImageTag(item.url || '')).join('') +
+      '</div>';
+    bindGeneratedImageFallbacks($('#kq12ResultArea'));
+  } else if (url) {
+    $('#kq12ResultArea').innerHTML = generatedImageTag(url);
+    bindGeneratedImageFallbacks($('#kq12ResultArea'));
+  } else if (primary.text) {
+    $('#kq12ResultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
+  }
+}
+
+function renderKQ12Failed(task, message) {
+  setKQ12Status('FAILED', task?.taskId ? ('TASK · ' + task.taskId) : 'ERROR');
+  setKQ12Download();
+  $('#kq12ResultArea').innerHTML = failureHtml(task, message);
+}
+
+function getKQ12Nodes(prompt) {
+  return [
+    {nodeId:'216',fieldName:'text',fieldValue:prompt,description:'text'}
+  ];
+}
+
+async function runKQ12Task() {
+  if (kq12State.running) return;
+
+  if (!apiKey()) {
+    toast('请先在设置中保存 RunningHub API Key','bad');
+    openSettings();
+    return;
+  }
+
+  const prompt = $('#kq12PromptInput').value.trim();
+  if (!prompt) {
+    toast('请输入图片提示词','bad');
+    $('#kq12PromptInput').focus();
+    return;
+  }
+
+  kq12State.running = true;
+  $('#kq12RunBtn').disabled = true;
+  $('.kq12-generate-label').textContent = '提交任务…';
+  setKQ12Download();
+  setKQ12Status('SUBMITTING','RUNNINGHUB');
+
+  try {
+    const data = await runRHApp(APPS[APP_KEYS.kq12Portrait].appId, getKQ12Nodes(prompt));
+    kq12State.task = data;
+
+    upsertHistory(APP_KEYS.kq12Portrait, data, {
+      createdAt:Date.now(),
+      aspect:'',
+      quality:'Prompt Only',
+      duration:'',
+      instance:instanceLabel($('#instanceType').value),
+      prompt:prompt.slice(0,120)
+    });
+
+    toast('图片生成任务已提交','good');
+
+    if (data.status === 'SUCCESS') {
+      renderKQ12Success(data);
+    } else if (data.status === 'FAILED') {
+      renderKQ12Failed(data);
+    } else {
+      renderKQ12Loading(data.status || 'RUNNING', data.taskId);
+      if (data.taskId) {
+        clearInterval(kq12State.poll);
+        kq12State.poll = setInterval(() => queryKQ12Task(data.taskId), 3000);
+      }
+    }
+  } catch (error) {
+    renderKQ12Failed(kq12State.task, error?.message || '运行失败');
+    toast(error?.message || '运行失败','bad');
+  } finally {
+    kq12State.running = false;
+    $('#kq12RunBtn').disabled = false;
+    $('.kq12-generate-label').textContent = '开始生成';
+  }
+}
+
+async function queryKQ12Task(taskId) {
+  try {
+    const data = await queryRH(taskId);
+    kq12State.task = data;
+    const status = data.status || 'RUNNING';
+
+    upsertHistory(APP_KEYS.kq12Portrait, data, {taskId});
+
+    if (status === 'SUCCESS') {
+      clearInterval(kq12State.poll);
+      kq12State.poll = null;
+      renderKQ12Success(data);
+      toast('图片生成完成','good');
+    } else if (status === 'FAILED') {
+      clearInterval(kq12State.poll);
+      kq12State.poll = null;
+      renderKQ12Failed(data);
+      toast('图片生成失败','bad');
+    } else {
+      renderKQ12Loading(status, data.taskId || taskId);
+    }
+  } catch (error) {
+    clearInterval(kq12State.poll);
+    kq12State.poll = null;
+    renderKQ12Failed(kq12State.task, error?.message || '任务查询失败');
+    toast(error?.message || '任务查询失败','bad');
+  }
+}
+
 function triggerDownload(outputState, button, prefix) {
   if (!outputState.outputUrl) return;
 
@@ -1651,6 +1826,8 @@ $('#imageUpscaleRunBtn').onclick = runImageUpscaleTask;
 $('#imageUpscaleDownloadBtn').onclick = () => triggerDownload(imageUpscaleState, $('#imageUpscaleDownloadBtn'), 'rh-studio-image-upscale');
 $('#whiteMarbleRunBtn').onclick = runWhiteMarbleTask;
 $('#whiteMarbleDownloadBtn').onclick = () => triggerDownload(whiteMarbleState, $('#whiteMarbleDownloadBtn'), 'rh-studio-white-marble');
+$('#kq12RunBtn').onclick = runKQ12Task;
+$('#kq12DownloadBtn').onclick = () => triggerDownload(kq12State, $('#kq12DownloadBtn'), 'rh-studio-kq12');
 
 $('#toggleKey').onclick = () => {
   const input = $('#apiKeyInput');
@@ -1690,6 +1867,7 @@ $('#clearLocal').onclick = () => {
     LS.whiteMarbleWidth,
     LS.whiteMarbleHeight,
     LS.whiteMarbleSeed,
+    LS.kq12Prompt,
     LS.inst
   ].forEach(k => localStorage.removeItem(k));
 
@@ -1699,6 +1877,7 @@ $('#clearLocal').onclick = () => {
   renderImageIdle();
   renderImageUpscaleIdle();
   renderWhiteMarbleIdle();
+  renderKQ12Idle();
   setActiveApp(APP_KEYS.video);
   toast('本地应用配置已重置');
 };
@@ -1710,6 +1889,7 @@ renderVideoIdle();
 renderImageIdle();
 renderImageUpscaleIdle();
 renderWhiteMarbleIdle();
+renderKQ12Idle();
 
 const params = new URLSearchParams(window.location.search);
 const requestedApp = params.get('app');
@@ -1732,6 +1912,9 @@ if (recoveryTaskId) {
   } else if (initialApp === APP_KEYS.whiteMarble) {
     renderWhiteMarbleLoading('RUNNING', recoveryTaskId);
     queryWhiteMarbleTask(recoveryTaskId);
+  } else if (initialApp === APP_KEYS.kq12Portrait) {
+    renderKQ12Loading('RUNNING', recoveryTaskId);
+    queryKQ12Task(recoveryTaskId);
   } else {
     renderVideoLoading('RUNNING', recoveryTaskId);
     queryVideoTask(recoveryTaskId);
