@@ -163,7 +163,7 @@ function renderHistory() {
     const instance = esc(item.instance || '—');
     const taskId = esc(item.taskId || '');
     const time = esc(formatTime(item.createdAt));
-    const appName = esc(item.appName || 'RunningHub');
+    const appName = esc(item.appKey === 'image-2mp' ? '超强文生图V3.0 基础版' : (item.appName || 'RunningHub'));
     const appParam = item.appKey ? '&app=' + encodeURIComponent(item.appKey) : '';
 
     const media = success
