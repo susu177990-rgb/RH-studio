@@ -556,3 +556,16 @@ Vercel 配置继续保留作为备用兼容，但不再作为默认生产部署�
 - API Key 与运行实例统一使用全局设置。
 - 本应用 `type: "video"`，自动进入左侧“视频”分类。
 - 与 `minimax-h3` 使用完全独立的媒体 slot，禁止跨应用上传节点串用。
+
+
+## 16. 统一图片预览组件
+- 所有图片类应用统一使用 `.image-preview-shell > .image-preview-stage`，禁止为单个图片应用创建独立的结果预览尺寸规则。
+- 图片预览统一使用共享 design tokens：
+  - `--image-preview-radius`
+  - `--image-preview-border`
+  - `--image-preview-bg`
+  - `--image-preview-padding`
+- 单张结果统一使用 `img.generated-image`，必须完整显示原图比例，居中，`object-fit: contain`，禁止 crop、stretch 或按原始像素尺寸溢出容器。
+- CSS 必须提供 `max-width:100%` / `max-height:100%` 兜底；JS 尺寸计算只能作为增强，不能成为图片正确显示的唯一条件。
+- 应用切换、窗口 resize 和预览容器 resize 时，都要重新执行图片 fit。
+- White Marble、KQ12、基础文生图、Krea2 Claire、Face T2I、Skin Upscale 等图片应用必须遵循同一套预览组件规则。
