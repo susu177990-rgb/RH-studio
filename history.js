@@ -68,6 +68,14 @@ function toMediaUrl(url) {
   return url;
 }
 
+function historyImageTag(url) {
+  const direct = String(url || '');
+  const proxy = toMediaUrl(direct);
+  return '<img src="' + esc(direct) + '"' +
+    (proxy && proxy !== direct ? ' data-fallback-src="' + esc(proxy) + '"' : '') +
+    ' referrerpolicy="no-referrer" alt="generated image">';
+}
+
 function isImageType(value) {
   const type = String(value || '').toLowerCase();
   return ['png','jpg','jpeg','webp','gif','avif'].includes(type) || type.includes('image');
@@ -158,7 +166,7 @@ function renderHistory() {
     const media = success
       ? '<div class="history-media" style="aspect-ratio:' + ratioValue(item.aspect) + '">' +
           (isImageType(type)
-            ? '<img src="' + esc(mediaUrl) + '" alt="generated image">'
+            ? historyImageTag(item.resultUrl)
             : '<video src="' + esc(mediaUrl) + '" controls playsinline preload="metadata"></video>') +
         '</div>'
       : '<div class="history-media history-media-empty" style="aspect-ratio:' + ratioValue(item.aspect) + '">' +
@@ -247,6 +255,13 @@ $('#importHistoryTask').onclick = importTask;
 
 $('#historyList').addEventListener('error', e => {
   if (!['VIDEO','IMG'].includes(e.target.tagName)) return;
+
+  if (e.target.tagName === 'IMG' && e.target.dataset.fallbackSrc && !e.target.dataset.fallbackTried) {
+    e.target.dataset.fallbackTried = '1';
+    e.target.src = e.target.dataset.fallbackSrc;
+    return;
+  }
+
   const media = e.target.closest('.history-media');
   if (!media) return;
   media.classList.add('history-media-broken');
