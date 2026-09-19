@@ -419,3 +419,22 @@ RH Studio 不是单一的 MinimaxH3 前端，也不是只服务于生视频。
 - 当前主界面只暴露 Prompt 和画幅；2MP、1.5×、8 Steps、Sampler / Scheduler 等按 API 示例固定提交。
 - API Key 与运行实例统一使用全局设置。
 - 本应用节点不得与其他 AI App 的同号节点混用。
+
+
+### 14.4 Krea2 turbo White_Marble-AIO（Portrait Master）
+
+- `appKey`: `krea2-white-marble`
+- 类型：纯文本生图 / 肖像
+- RunningHub AI App ID：`2083580194556071937`
+- 主输入：
+  - Prompt：Node 5 / `text`
+- 已确认控制：
+  - 宽度：Node 7 / `width`，默认 `1080`
+  - 高度：Node 7 / `height`，默认 `1920`
+  - Seed：Node 6 / `seed`，默认 `527633149753192`
+  - Batch Size：Node 7 / `batch_size`，固定 `1`
+- 当前主界面暴露 Prompt / Width / Height / Seed；Batch Size 固定提交，不额外占用主界面。
+- 输出：图片。
+- 图片结果使用独立自然比例预览组件，不复用视频媒体舞台。
+- API Key 与运行实例统一使用全局设置。
+- 本应用节点不得与其他 AI App 的同号节点混用。
