@@ -49,6 +49,20 @@ export default {async fetch(request){
       });
     }
 
+    if(result?.status==="SUCCESS"){
+      const media=(Array.isArray(result?.results)?result.results:[]).map(item=>{
+        let host="";
+        try{ host=new URL(item?.url||"").hostname; }catch{}
+        return {
+          nodeId:item?.nodeId||"",
+          outputType:item?.outputType||"",
+          host,
+          hasUrl:!!item?.url
+        };
+      });
+      try{ console.info("[RH_TASK_SUCCESS]",JSON.stringify({taskId:result?.taskId||taskId,media})); }catch{}
+    }
+
     return reply(result);
   }catch(error){
     safeLog("[RH_QUERY_EXCEPTION]",{message:error instanceof Error?error.message:String(error)});
