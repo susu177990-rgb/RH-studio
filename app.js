@@ -35,6 +35,7 @@ const state = {
   poll: null,
   running: false,
   outputUrl: '',
+  outputSourceUrl: '',
   outputType: ''
 };
 
@@ -355,8 +356,20 @@ function setStatus(status, meta='') {
   $('#taskMeta').textContent = meta || 'READY';
 }
 
+function toMediaUrl(url) {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url, window.location.href);
+    if (parsed.hostname === 'rh-images-1252422369.cos.ap-beijing.myqcloud.com') {
+      return '/rh-media' + parsed.pathname + parsed.search;
+    }
+  } catch {}
+  return url;
+}
+
 function setDownload(url='', type='') {
-  state.outputUrl = url || '';
+  state.outputSourceUrl = url || '';
+  state.outputUrl = toMediaUrl(url || '');
   state.outputType = type || '';
   $('#downloadBtn').disabled = !state.outputUrl;
 }
@@ -408,13 +421,21 @@ function renderSuccess(task) {
   }
 
   const url = primary.url || '';
+  const mediaUrl = toMediaUrl(url);
   const type = String(primary.outputType || 'output').toLowerCase();
   setDownload(url, type);
 
   if (isVideo(primary) && url) {
-    $('#resultArea').innerHTML = '<video src="' + esc(url) + '" controls playsinline autoplay></video>';
+    $('#resultArea').innerHTML = '<video src="' + esc(mediaUrl) + '" controls playsinline preload="metadata"></video>';
+    const video = $('#resultArea video');
+    if (video) {
+      video.addEventListener('error', () => {
+        const code = video.error?.code || '';
+        toast('视频已生成，但浏览器加载失败' + (code ? ' · MEDIA_ERR_' + code : ''), 'bad');
+      }, { once:true });
+    }
   } else if (isImage(primary) && url) {
-    $('#resultArea').innerHTML = '<img src="' + esc(url) + '" alt="generated output">';
+    $('#resultArea').innerHTML = '<img src="' + esc(mediaUrl) + '" alt="generated output">';
   } else if (primary.text) {
     $('#resultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
   } else {
@@ -663,31 +684,24 @@ async function downloadOutput() {
   btn.innerHTML = '<span>下载中</span><b>↓</b>';
 
   try {
-    const res = await fetch(state.outputUrl);
-    if (!res.ok) throw new Error('download failed');
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
     const ext = (state.outputType || 'mp4').replace(/[^a-z0-9]/gi,'') || 'mp4';
-    a.href = objectUrl;
-    a.download = 'rh-studio-output.' + ext;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
-    toast('已开始下载','good');
-  } catch {
     const a = document.createElement('a');
     a.href = state.outputUrl;
-    a.target = '_blank';
+    a.download = 'rh-studio-output.' + ext;
     a.rel = 'noreferrer';
     document.body.appendChild(a);
     a.click();
     a.remove();
-    toast('已打开原文件，请在浏览器中保存');
+    toast('已开始下载','good');
+  } catch {
+    const fallback = state.outputSourceUrl || state.outputUrl;
+    window.open(fallback, '_blank', 'noopener,noreferrer');
+    toast('下载失败，已打开原文件','bad');
   } finally {
-    btn.disabled = !state.outputUrl;
-    btn.innerHTML = original;
+    setTimeout(() => {
+      btn.disabled = !state.outputUrl;
+      btn.innerHTML = original;
+    }, 450);
   }
 }
 
