@@ -5,6 +5,7 @@ import { Readable } from 'node:stream';
 import runHandler from './api/rh/run.js';
 import queryHandler from './api/rh/query.js';
 import uploadHandler from './api/rh/upload.js';
+import archiveHandler from './api/rh/archive.js';
 
 const HOST = '0.0.0.0';
 const PORT = Number(process.env.PORT || 3000);
@@ -181,6 +182,11 @@ async function route(req, res) {
 
   if (pathname === '/api/rh/upload') {
     await sendWebResponse(res, await uploadHandler.fetch(toWebRequest(req)));
+    return;
+  }
+
+  if (pathname === '/api/rh/archive') {
+    await sendWebResponse(res, await archiveHandler.fetch(toWebRequest(req)));
     return;
   }
 
