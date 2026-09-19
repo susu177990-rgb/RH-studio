@@ -352,3 +352,47 @@ RH Studio 不是单一的 MinimaxH3 前端，也不是只服务于生视频。
 4. 通用工程最佳实践
 
 如果新需求与本文件冲突，不要擅自折中。优先执行用户最新明确要求，并在必要时同步更新本文件。
+
+---
+
+## 14. 当前应用注册表
+
+### 14.1 MinimaxH3 多参生视频
+
+- `appKey`: `minimax-h3`
+- 类型：生视频
+- RunningHub AI App ID：`2084320751339032577`
+- 主要输入：
+  - 图片：Node 141 / 142 / 143 / 161 / 175 / 176，字段 `image`
+  - 视频：Node 164，字段 `video`
+  - 音频：Node 144 / 160 / 189，字段 `audio`
+  - Prompt：Node 150，字段 `value`
+- 已确认控制：
+  - 画幅：Node 115 / `aspect_ratio`
+  - 时长：Node 186 / `value`，当前 UI 范围 5–15 秒
+  - 清晰度 / 像素参数：Node 147 / `value`
+- 其他节点按当前已确认默认值提交，不擅自解释未知含义。
+- 输出：以 RunningHub 返回的视频结果为主，也兼容图片 / 文本结果。
+
+### 14.2 2MP 文生图
+
+- `appKey`: `image-2mp`
+- 类型：纯文本生图
+- RunningHub AI App ID：`2086825499864018945`
+- 主输入：
+  - Prompt：Node 214 / `text`
+- 已确认控制：
+  - 画幅：Node 180 / `aspect_ratio`
+  - 输出像素：Node 180 / `megapixels`，固定值 `2`
+- API 示例中存在但业务含义未确认的节点，保持示例默认值，不在主界面暴露：
+  - Node 218 / `value` = `false`
+  - Node 179 / `value` = `1`
+  - Node 216 / `strength_model` = `0.45000000000000007`
+  - Node 210 / `value` = `false`
+- 输出：图片。
+- 当前工作区：
+  - 左侧：大 Prompt 输入区
+  - 右侧：大图片结果预览
+  - 底部：画幅、固定 2MP 状态、生成按钮
+- API Key 与运行实例统一使用全局设置。
+- 禁止把本应用的 Node ID / 默认值复用于其他应用，除非对应 RunningHub 文档明确一致。
