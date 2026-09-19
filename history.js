@@ -84,6 +84,56 @@ function isImageType(value) {
   return ['png','jpg','jpeg','webp','gif','avif'].includes(type) || type.includes('image');
 }
 
+function outputExtension(item) {
+  const raw = String(item?.outputType || '').toLowerCase();
+  const clean = raw.replace(/[^a-z0-9]/g, '');
+  if (clean && clean.length <= 8) return clean;
+  try {
+    const path = new URL(item?.resultUrl || '').pathname;
+    const match = path.match(/\.([a-z0-9]{2,8})$/i);
+    if (match) return match[1].toLowerCase();
+  } catch {}
+  return isImageType(raw) ? 'png' : 'mp4';
+}
+
+function getLatestBatchId(items=getHistory()) {
+  const latest = [...items]
+    .filter(item => item?.batchId)
+    .sort((a,b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))[0];
+  return latest?.batchId || '';
+}
+
+function downloadableItems(items) {
+  return items.filter(item =>
+    String(item?.status || '').toUpperCase() === 'SUCCESS' &&
+    !!item?.resultUrl
+  );
+}
+
+function syncArchiveButtons(items=getHistory()) {
+  const all = downloadableItems(items);
+  const latestBatchId = getLatestBatchId(items);
+  const latest = latestBatchId
+    ? all.filter(item => item.batchId === latestBatchId)
+    : [];
+
+  const latestButton = $('#downloadLatestBatch');
+  const allButton = $('#downloadAllHistory');
+
+  if (latestButton) {
+    latestButton.disabled = latest.length === 0;
+    latestButton.dataset.batchId = latestBatchId;
+    latestButton.title = latestBatchId
+      ? ('最近批次可下载 ' + latest.length + ' 个结果')
+      : '暂无批量生成记录';
+  }
+
+  if (allButton) {
+    allButton.disabled = all.length === 0;
+    allButton.title = '全部可下载结果 ' + all.length + ' 个';
+  }
+}
+
 function ratioValue(value) {
   const match = String(value || '').match(/^(\d+):(\d+)$/);
   if (!match) return '16 / 9';
@@ -141,6 +191,7 @@ function renderHistory() {
   const list = $('#historyList');
   const items = getHistory().sort((a,b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
   $('#historyCount').textContent = String(items.length);
+  syncArchiveButtons(items);
 
   if (!items.length) {
     list.innerHTML =
@@ -165,6 +216,12 @@ function renderHistory() {
     const time = esc(formatTime(item.createdAt));
     const appName = esc(item.appKey === 'image-2mp' ? '超强文生图V3.0 基础版' : (item.appName || 'RunningHub'));
     const appParam = item.appKey ? '&app=' + encodeURIComponent(item.appKey) : '';
+    const batchTag = item.batchId
+      ? '<div class="history-batch-tag">BATCH · ' +
+          esc(String(item.batchIndex || '—')) + ' / ' +
+          esc(String(item.batchTotal || '—')) +
+        '</div>'
+      : '';
 
     const media = success
       ? '<div class="history-media" style="aspect-ratio:' + ratioValue(item.aspect) + '">' +
@@ -198,6 +255,7 @@ function renderHistory() {
             '<span>' + duration + '</span>' +
             '<span>' + instance + '</span>' +
           '</div>' +
+          batchTag +
           '<div class="history-task">TASK · ' + taskId + '</div>' +
           '<div class="history-card-actions">' +
             '<a class="history-open" href="/?task=' + encodeURIComponent(item.taskId || '') + appParam + '">查看</a>' +
@@ -207,6 +265,112 @@ function renderHistory() {
       '</article>'
     );
   }).join('');
+}
+
+
+function archiveFilename(item, position, scope='all') {
+  const ext = outputExtension(item);
+  const index = scope === 'batch'
+    ? Number(item.batchIndex || position + 1)
+    : position + 1;
+  const prefix = scope === 'batch' ? 'batch' : 'history';
+  const safeIndex = String(index).padStart(3, '0');
+  const task = String(item.taskId || 'task').replace(/[^a-zA-Z0-9_-]/g, '');
+  return prefix + '-' + safeIndex + '-' + task + '.' + ext;
+}
+
+function setArchiveBusy(button, busy, label='') {
+  if (!button) return;
+  if (busy) {
+    button.dataset.originalHtml = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = (label || '正在打包') + ' <b>…</b>';
+  } else {
+    if (button.dataset.originalHtml) button.innerHTML = button.dataset.originalHtml;
+    delete button.dataset.originalHtml;
+    syncArchiveButtons();
+  }
+}
+
+async function requestHistoryArchive(items, archiveName, scope, button) {
+  const targets = downloadableItems(items);
+  if (!targets.length) {
+    toast('没有可打包下载的已完成结果','bad');
+    return;
+  }
+
+  setArchiveBusy(button, true, '正在打包');
+
+  try {
+    const payload = targets.map((item, index) => ({
+      url:item.resultUrl,
+      taskId:item.taskId,
+      filename:archiveFilename(item, index, scope)
+    }));
+
+    const res = await fetch('/api/rh/archive', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        archiveName,
+        items:payload
+      })
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || ('打包失败 (' + res.status + ')'));
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = archiveName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+    toast('ZIP 打包下载已开始','good');
+  } catch (error) {
+    toast(error?.message || '打包下载失败','bad');
+  } finally {
+    setArchiveBusy(button, false);
+  }
+}
+
+async function downloadLatestBatchArchive() {
+  const items = getHistory();
+  const batchId = getLatestBatchId(items);
+  if (!batchId) {
+    toast('还没有批量生成记录','bad');
+    return;
+  }
+
+  const batchItems = items
+    .filter(item => item.batchId === batchId)
+    .sort((a,b) => Number(a.batchIndex || 0) - Number(b.batchIndex || 0));
+
+  const suffix = batchId.replace(/[^a-zA-Z0-9_-]/g, '').slice(-24) || 'latest';
+  await requestHistoryArchive(
+    batchItems,
+    'rh-studio-latest-batch-' + suffix + '.zip',
+    'batch',
+    $('#downloadLatestBatch')
+  );
+}
+
+async function downloadAllHistoryArchive() {
+  const items = getHistory()
+    .sort((a,b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+
+  await requestHistoryArchive(
+    items,
+    'rh-studio-all-history.zip',
+    'all',
+    $('#downloadAllHistory')
+  );
 }
 
 async function importTask() {
@@ -254,6 +418,8 @@ async function refreshActiveTasks() {
   if (changed) renderHistory();
 }
 
+$('#downloadLatestBatch').onclick = downloadLatestBatchArchive;
+$('#downloadAllHistory').onclick = downloadAllHistoryArchive;
 $('#importHistoryTask').onclick = importTask;
 
 $('#historyList').addEventListener('error', e => {
