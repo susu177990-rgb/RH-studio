@@ -62,6 +62,36 @@ export default {async fetch(request){
       },response.status);
     }
 
+    const appCode=result?.code;
+    const hasBusinessError=appCode!=null&&String(appCode)!=="0";
+    const taskId=String(result?.taskId||"").trim();
+
+    if(hasBusinessError||!taskId){
+      const message=
+        result?.errorMessage||
+        result?.message||
+        result?.msg||
+        (hasBusinessError
+          ? `RunningHub 返回业务错误 (${String(appCode)})`
+          : "RunningHub 未返回 taskId，任务未创建");
+
+      safeLog("[RH_RUN_INVALID_RESPONSE]",{
+        appId,
+        httpStatus:response.status,
+        code:appCode??"",
+        errorCode:result?.errorCode||"",
+        errorMessage:message,
+        status:result?.status||"",
+        hasTaskId:!!taskId,
+        promptTips:result?.promptTips||""
+      },"error");
+
+      return reply({
+        error:message,
+        raw:result
+      },502);
+    }
+
     safeLog("[RH_TASK_SUBMITTED]",{
       taskId:result?.taskId||"",
       status:result?.status||"",
