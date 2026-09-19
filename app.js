@@ -83,7 +83,7 @@ const LS = {
   appFilter: 'rhstudio.appFilter',
   inst: 'rhstudio.instanceType',
   history: 'rhstudio.generationHistory',
-  runtimeTasks: 'rhstudio.runtimeTasks.v1'
+  runtimeTasks: 'rhstudio.runtimeTasks.v2'
 };
 
 const MEDIA = {
@@ -361,6 +361,7 @@ function loadConfig() {
   localStorage.removeItem('rhstudio.faceT2I.modelBranch');
   localStorage.removeItem('rhstudio.faceT2I.aspect');
   localStorage.removeItem('rhstudio.faceT2I.hd');
+  localStorage.removeItem('rhstudio.runtimeTasks.v1');
   $('#promptInput').value = localStorage.getItem(LS.prompt) || '';
   $('#aspectRatio').value = localStorage.getItem(LS.aspect) || '9:16 (Portrait Widescreen)';
   $('#qualityPreset').value = localStorage.getItem(LS.quality) || '0.9';
