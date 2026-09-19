@@ -21,6 +21,20 @@
       </div>
 
       <div class="section-label">应用</div>
+      <div class="app-filter" role="group" aria-label="应用类型筛选">
+        <button class="app-filter-btn active" data-app-filter="all" type="button" aria-pressed="true">
+          <span>全部</span><b id="appFilterCountAll">7</b>
+        </button>
+        <button class="app-filter-btn" data-app-filter="image" type="button" aria-pressed="false">
+          <span>图片</span><b id="appFilterCountImage">6</b>
+        </button>
+        <button class="app-filter-btn" data-app-filter="video" type="button" aria-pressed="false">
+          <span>视频</span><b id="appFilterCountVideo">1</b>
+        </button>
+        <button class="app-filter-btn" data-app-filter="text" type="button" aria-pressed="false">
+          <span>文字</span><b id="appFilterCountText">0</b>
+        </button>
+      </div>
       <div class="app-list">
         <button class="app-item active" data-app="minimax-h3" type="button">
           <div class="app-icon">M3</div>
@@ -84,6 +98,11 @@
           </div>
           <i class="active-dot"></i>
         </button>
+
+        <div id="appFilterEmpty" class="app-filter-empty hidden">
+          <strong>暂无应用</strong>
+          <span>这个分类还没有接入应用。</span>
+        </div>
       </div>
     </div>
 
