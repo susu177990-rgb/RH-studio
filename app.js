@@ -214,7 +214,8 @@ const autoBatchState = {
   active:0,
   nextIndex:1,
   startedAt:0,
-  lastError:''
+  lastError:'',
+  downloading:false
 };
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -787,6 +788,7 @@ function syncAutoGenerateAvailability() {
   if (appLabel) appLabel.textContent = isVideo ? APPS[state.activeApp].title : '当前页面不支持批量视频';
   if (materialLabel) materialLabel.textContent = currentBatchMaterialCount() + ' 个';
   if (start) start.disabled = autoBatchState.running || !isVideo;
+  syncCurrentBatchDownloadButton();
 }
 
 function openAutoGenerate(appKey=state.activeApp) {
@@ -2816,11 +2818,128 @@ function autoBatchHasManualVideoTask() {
   });
 }
 
+
+function autoBatchOutputExtension(item) {
+  const raw = String(item?.outputType || '').toLowerCase();
+  const clean = raw.replace(/[^a-z0-9]/g, '');
+  if (clean && clean.length <= 8) return clean;
+
+  try {
+    const path = new URL(item?.resultUrl || '').pathname;
+    const match = path.match(/\.([a-z0-9]{2,8})$/i);
+    if (match) return match[1].toLowerCase();
+  } catch {}
+
+  return 'mp4';
+}
+
+function currentBatchDownloadableItems() {
+  if (!autoBatchState.batchId) return [];
+
+  return getHistory()
+    .filter(item =>
+      item?.batchId === autoBatchState.batchId &&
+      String(item?.status || '').toUpperCase() === 'SUCCESS' &&
+      !!item?.resultUrl
+    )
+    .sort((a,b) => Number(a.batchIndex || 0) - Number(b.batchIndex || 0));
+}
+
+function syncCurrentBatchDownloadButton() {
+  const button = $('#downloadCurrentBatch');
+  if (!button) return;
+
+  const items = currentBatchDownloadableItems();
+  const ready = !autoBatchState.running &&
+    !autoBatchState.downloading &&
+    !!autoBatchState.batchId &&
+    items.length > 0;
+
+  button.disabled = !ready;
+  button.title = autoBatchState.batchId
+    ? (items.length
+        ? ('本次批量可下载 ' + items.length + ' 个成功结果')
+        : '本次批量暂无可下载的成功结果')
+    : '完成一次批量生成后可在这里打包下载';
+}
+
+async function downloadCurrentBatchArchive() {
+  if (autoBatchState.running || autoBatchState.downloading) return;
+
+  const items = currentBatchDownloadableItems();
+  if (!autoBatchState.batchId || !items.length) {
+    toast('本次批量暂无可下载的成功结果','bad');
+    syncCurrentBatchDownloadButton();
+    return;
+  }
+
+  const button = $('#downloadCurrentBatch');
+  const original = button?.innerHTML || '';
+  autoBatchState.downloading = true;
+
+  if (button) {
+    button.disabled = true;
+    button.innerHTML = '<span>正在打包</span><b>…</b>';
+  }
+
+  try {
+    const payload = items.map((item, index) => ({
+      url:item.resultUrl,
+      taskId:item.taskId,
+      filename:
+        'batch-' +
+        String(Number(item.batchIndex || index + 1)).padStart(3,'0') +
+        '-' +
+        String(item.taskId || 'task').replace(/[^a-zA-Z0-9_-]/g,'') +
+        '.' +
+        autoBatchOutputExtension(item)
+    }));
+
+    const safeBatchId = String(autoBatchState.batchId)
+      .replace(/[^a-zA-Z0-9_-]/g,'')
+      .slice(-32) || 'current';
+
+    const archiveName = 'rh-studio-batch-' + safeBatchId + '.zip';
+    const res = await fetch('/api/rh/archive', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        archiveName,
+        items:payload
+      })
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || ('打包失败 (' + res.status + ')'));
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = archiveName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+    toast('本次批量 ZIP 下载已开始','good');
+  } catch (error) {
+    toast(error?.message || '本次批量打包失败','bad');
+  } finally {
+    autoBatchState.downloading = false;
+    if (button && original) button.innerHTML = original;
+    syncCurrentBatchDownloadButton();
+  }
+}
+
 function setAutoBatchControlsLocked(locked) {
   if ($('#runBtn')) $('#runBtn').disabled = !!locked;
   if ($('#multiFastRunBtn')) $('#multiFastRunBtn').disabled = !!locked;
   if ($('#startAutoGenerate')) $('#startAutoGenerate').disabled = !!locked || !isVideoAppKey(state.activeApp);
   if ($('#stopAutoGenerate')) $('#stopAutoGenerate').disabled = !locked;
+  if ($('#downloadCurrentBatch')) $('#downloadCurrentBatch').disabled = !!locked || autoBatchState.downloading;
 
   $$('[data-auto-generate-app]').forEach(button => {
     const ownsRunningBatch = !!locked &&
@@ -3074,6 +3193,7 @@ async function startAutoGenerate() {
   autoBatchState.nextIndex = 1;
   autoBatchState.startedAt = Date.now();
   autoBatchState.lastError = '';
+  autoBatchState.downloading = false;
 
   setAutoBatchControlsLocked(true);
   updateAutoBatchProgress('准备批量生成', '冻结当前素材与参数');
@@ -3118,6 +3238,7 @@ function stopAutoGenerate() {
 }
 
 $('#startAutoGenerate').onclick = startAutoGenerate;
+$('#downloadCurrentBatch').onclick = downloadCurrentBatchArchive;
 $('#stopAutoGenerate').onclick = stopAutoGenerate;
 $('#autoGenerateTotal').addEventListener('input', syncAutoGenerateAvailability);
 $('#autoGenerateConcurrency').addEventListener('change', syncAutoGenerateAvailability);
