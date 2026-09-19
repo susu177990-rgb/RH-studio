@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { createReadStream, statSync } from 'node:fs';
-import { extname, join, normalize } from 'node:path';
+import { extname, join, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import runHandler from './api/rh/run.js';
 import queryHandler from './api/rh/query.js';
@@ -87,9 +87,8 @@ function json(res, data, status = 200) {
 
 function safeStaticPath(pathname) {
   const decoded = decodeURIComponent(pathname);
-  const cleaned = normalize(decoded).replace(/^(..(/|\\|$))+/, '');
-  const relative = cleaned.replace(/^[/\\]+/, '');
-  return join(ROOT, relative);
+  const relative = decoded.replace(/^[/\\\\]+/, '');
+  return resolve(ROOT, relative);
 }
 
 function serveStatic(req, res, pathname) {
@@ -99,7 +98,7 @@ function serveStatic(req, res, pathname) {
 
   const filePath = safeStaticPath(target);
 
-  if (!filePath.startsWith(ROOT)) {
+  if (!(filePath === ROOT || filePath.startsWith(ROOT + sep))) {
     json(res, { error: 'Forbidden' }, 403);
     return true;
   }
@@ -132,6 +131,7 @@ function serveStatic(req, res, pathname) {
 function proxyHeaders(req, extra = {}) {
   const headers = nodeHeadersToWeb(req.headers);
   headers.delete('host');
+  headers.set('accept-encoding', 'identity');
   headers.delete('connection');
   headers.delete('content-length');
   for (const [key, value] of Object.entries(extra)) headers.set(key, value);
@@ -240,3 +240,12 @@ server.keepAliveTimeout = 65_000;
 server.listen(PORT, HOST, () => {
   console.log(`RH Studio listening on http://${HOST}:${PORT}`);
 });
+
+function shutdown(signal) {
+  console.log(`[SHUTDOWN] ${signal}`);
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
