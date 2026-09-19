@@ -1056,7 +1056,7 @@ function bindGeneratedImageFallbacks(root) {
 }
 
 function refitAllGeneratedImagePreviews() {
-  $('.image-preview-stage > img.generated-image').forEach(fitGeneratedImageToStage);
+  $$('.image-preview-stage > img.generated-image').forEach(fitGeneratedImageToStage);
 }
 
 window.addEventListener('resize', refitAllGeneratedImagePreviews);
@@ -1067,7 +1067,7 @@ if ('ResizeObserver' in window) {
       entry.target.querySelectorAll('img.generated-image').forEach(fitGeneratedImageToStage);
     });
   });
-  $('.image-preview-stage').forEach(stage => imagePreviewResizeObserver.observe(stage));
+  $$('.image-preview-stage').forEach(stage => imagePreviewResizeObserver.observe(stage));
 }
 
 function parseMaybeJson(value) {
