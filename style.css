@@ -10,7 +10,11 @@
   --accent-soft:rgba(255,179,92,.10);
   --good:#d7c59e;
   --bad:#ef887e;
-  --shadow:0 28px 86px rgba(0,0,0,.48),inset 0 1px rgba(255,255,255,.03)
+  --shadow:0 28px 86px rgba(0,0,0,.48),inset 0 1px rgba(255,255,255,.03);
+  --image-preview-radius:21px;
+  --image-preview-border:rgba(255,255,255,.055);
+  --image-preview-bg:#050505;
+  --image-preview-padding:0px
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -475,25 +479,28 @@ select,.input{width:100%;height:38px;border:1px solid var(--line);border-radius:
 
 .image-preview-shell{
   flex:1 1 auto;
+  min-width:0;
   min-height:0;
   width:100%;
   overflow:hidden;
-  border-radius:21px;
-  border:1px solid rgba(255,255,255,.055);
-  background:#050505;
+  border-radius:var(--image-preview-radius);
+  border:1px solid var(--image-preview-border);
+  background:var(--image-preview-bg);
 }
 .image-preview-stage{
   position:relative;
   width:100%;
   height:100%;
+  min-width:0;
   min-height:0;
   overflow:hidden;
   display:flex;
   align-items:center;
   justify-content:center;
+  padding:var(--image-preview-padding);
   background:
     radial-gradient(circle at 50% 42%,rgba(255,179,92,.025),transparent 36%),
-    #050505;
+    var(--image-preview-bg);
 }
 .image-preview-stage:before{
   content:"";
@@ -508,10 +515,13 @@ select,.input{width:100%;height:38px;border:1px solid var(--line);border-radius:
   display:block;
   flex:0 0 auto;
   margin:0;
-  max-width:none;
-  max-height:none;
+  width:auto;
+  height:auto;
+  max-width:100%;
+  max-height:100%;
   object-fit:contain;
-  background:#050505;
+  object-position:center;
+  background:var(--image-preview-bg);
 }
 .image-result-grid{
   width:100%;
