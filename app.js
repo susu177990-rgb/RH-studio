@@ -1,17 +1,42 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 
-const APP_ID = '2084320751339032577';
+const APPS = {
+  'minimax-h3': {
+    key: 'minimax-h3',
+    appId: '2084320751339032577',
+    name: 'MinimaxH3多参生视频',
+    subtitle: '量化加速 V3版',
+    title: 'MinimaxH3多参生视频 · 量化加速V3版',
+    type: 'video'
+  },
+  'image-2mp': {
+    key: 'image-2mp',
+    appId: '2086825499864018945',
+    name: '2MP 文生图',
+    subtitle: '纯文本生成',
+    title: '2MP 文生图 · 纯文本生成',
+    type: 'image'
+  }
+};
+
+const APP_KEYS = {
+  video: 'minimax-h3',
+  image: 'image-2mp'
+};
+
 const RH_UPLOAD_DIRECT = 'https://www.runninghub.ai/openapi/v2/media/upload/binary';
 const MAX_RH_UPLOAD_BYTES = 30 * 1024 * 1024;
 
 const LS = {
   key: 'rhstudio.apiKey',
-  app: 'rhstudio.appId',
+  active: 'rhstudio.activeApp',
   prompt: 'rhstudio.prompt',
   aspect: 'rhstudio.aspectRatio',
   quality: 'rhstudio.qualityPreset',
   duration: 'rhstudio.duration',
+  imagePrompt: 'rhstudio.image2mp.prompt',
+  imageAspect: 'rhstudio.image2mp.aspectRatio',
   inst: 'rhstudio.instanceType',
   history: 'rhstudio.generationHistory'
 };
@@ -30,8 +55,21 @@ const MEDIA = {
 };
 
 const state = {
+  activeApp: APP_KEYS.video,
   files: {},
-  objectUrls: {},
+  objectUrls: {}
+};
+
+const videoState = {
+  task: null,
+  poll: null,
+  running: false,
+  outputUrl: '',
+  outputSourceUrl: '',
+  outputType: ''
+};
+
+const imageState = {
   task: null,
   poll: null,
   running: false,
@@ -62,6 +100,14 @@ function maskKey(key) {
   return key.slice(0,4) + '••••••••' + key.slice(-4);
 }
 
+function instanceLabel(value) {
+  return {default:'24G',plus:'48G',ultra:'84G'}[value] || value || '24G';
+}
+
+function qualityLabel(value) {
+  return {'0.4':'480P','0.9':'720P','2.0':'1080P'}[String(value)] || String(value || '');
+}
+
 function updateKeyUI() {
   const key = apiKey();
   const ok = !!key;
@@ -74,17 +120,37 @@ function updateKeyUI() {
   $('#settingsBadge').style.color = ok ? 'var(--good)' : 'var(--accent)';
 }
 
-function persist() {
-  localStorage.setItem(LS.app, $('#appId').value.trim() || APP_ID);
+function setActiveApp(key, persist=true) {
+  if (!APPS[key]) key = APP_KEYS.video;
+  state.activeApp = key;
+
+  $$('.app-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.app === key);
+  });
+
+  $('#workspaceVideo').classList.toggle('hidden', key !== APP_KEYS.video);
+  $('#workspaceImage').classList.toggle('hidden', key !== APP_KEYS.image);
+
+  const app = APPS[key];
+  $('#currentAppTitle').textContent = app.title;
+  $('#settingsCurrentApp').textContent = app.title;
+
+  if (persist) localStorage.setItem(LS.active, key);
+}
+
+function persistVideoConfig() {
   localStorage.setItem(LS.prompt, $('#promptInput').value);
   localStorage.setItem(LS.aspect, $('#aspectRatio').value);
   localStorage.setItem(LS.quality, $('#qualityPreset').value);
   localStorage.setItem(LS.duration, $('#durationRange').value);
-  localStorage.setItem(LS.inst, $('#instanceType').value);
+}
+
+function persistImageConfig() {
+  localStorage.setItem(LS.imagePrompt, $('#imagePromptInput').value);
+  localStorage.setItem(LS.imageAspect, $('#imageAspectRatio').value);
 }
 
 function loadConfig() {
-  $('#appId').value = localStorage.getItem(LS.app) || APP_ID;
   $('#promptInput').value = localStorage.getItem(LS.prompt) || '';
   $('#aspectRatio').value = localStorage.getItem(LS.aspect) || '9:16 (Portrait Widescreen)';
   $('#qualityPreset').value = localStorage.getItem(LS.quality) || '0.9';
@@ -94,25 +160,14 @@ function loadConfig() {
   $('#durationRange').value = String(normalizedDuration);
   localStorage.setItem(LS.duration, String(normalizedDuration));
 
+  $('#imagePromptInput').value = localStorage.getItem(LS.imagePrompt) || '';
+  $('#imageAspectRatio').value = localStorage.getItem(LS.imageAspect) || '9:16 (Portrait Widescreen)';
   $('#instanceType').value = localStorage.getItem(LS.inst) || 'default';
+
   updateDurationUI();
   updatePromptCount();
-  updateRatioChip();
+  updateImagePromptCount();
 }
-
-['appId','promptInput','aspectRatio','qualityPreset','durationRange','instanceType'].forEach(id => {
-  const el = $('#' + id);
-  el.addEventListener('input', () => {
-    persist();
-    if (id === 'promptInput') updatePromptCount();
-    if (id === 'aspectRatio') updateRatioChip();
-    if (id === 'durationRange') updateDurationUI();
-  });
-  el.addEventListener('change', () => {
-    persist();
-    if (id === 'aspectRatio') updateRatioChip();
-  });
-});
 
 function updateDurationUI() {
   const range = $('#durationRange');
@@ -135,12 +190,36 @@ function updatePromptCount() {
   $('#promptCount').textContent = String($('#promptInput').value.length);
 }
 
-function updateRatioChip() {
-  const el = $('#ratioChip');
-  if (!el) return;
-  const value = $('#aspectRatio').value || '';
-  el.textContent = value.split(' ')[0] || '9:16';
+function updateImagePromptCount() {
+  $('#imagePromptCount').textContent = String($('#imagePromptInput').value.length);
 }
+
+['promptInput','aspectRatio','qualityPreset','durationRange'].forEach(id => {
+  const el = $('#' + id);
+  el.addEventListener('input', () => {
+    persistVideoConfig();
+    if (id === 'promptInput') updatePromptCount();
+    if (id === 'durationRange') updateDurationUI();
+  });
+  el.addEventListener('change', persistVideoConfig);
+});
+
+['imagePromptInput','imageAspectRatio'].forEach(id => {
+  const el = $('#' + id);
+  el.addEventListener('input', () => {
+    persistImageConfig();
+    if (id === 'imagePromptInput') updateImagePromptCount();
+  });
+  el.addEventListener('change', persistImageConfig);
+});
+
+$('#instanceType').addEventListener('change', () => {
+  localStorage.setItem(LS.inst, $('#instanceType').value);
+});
+
+$$('.app-item').forEach(item => {
+  item.addEventListener('click', () => setActiveApp(item.dataset.app));
+});
 
 function getHistory() {
   try {
@@ -157,20 +236,23 @@ function saveHistory(items) {
   } catch {}
 }
 
-function qualityLabel(value) {
-  const map = {'0.4':'480P','0.9':'720P','2.0':'1080P'};
-  return map[String(value)] || String(value || '');
+function isVideo(item) {
+  const type = String(item?.outputType || '').toLowerCase();
+  const url = String(item?.url || '').toLowerCase();
+  return type.includes('video') || ['mp4','webm','mov','m4v'].includes(type) || /\.(mp4|webm|mov|m4v)(\?|$)/.test(url);
 }
 
-function instanceLabel(value) {
-  const map = {default:'24G',plus:'48G',ultra:'84G'};
-  return map[value] || value || '24G';
+function isImage(item) {
+  const type = String(item?.outputType || '').toLowerCase();
+  const url = String(item?.url || '').toLowerCase();
+  return type.includes('image') || ['png','jpg','jpeg','webp','gif','avif'].includes(type) || /\.(png|jpe?g|webp|gif|avif)(\?|$)/.test(url);
 }
 
-function upsertHistory(task, extra={}) {
+function upsertHistory(appKey, task, extra={}) {
   const taskId = String(task?.taskId || extra.taskId || '').trim();
   if (!taskId) return;
 
+  const app = APPS[appKey] || APPS[APP_KEYS.video];
   const items = getHistory();
   const previous = items.find(item => item.taskId === taskId) || {};
   const results = Array.isArray(task?.results) ? task.results : [];
@@ -179,93 +261,34 @@ function upsertHistory(task, extra={}) {
   const next = {
     ...previous,
     taskId,
+    appKey,
+    appName: app.name,
     status: task?.status || extra.status || previous.status || 'RUNNING',
     createdAt: previous.createdAt || extra.createdAt || Date.now(),
     updatedAt: Date.now(),
-    aspect: extra.aspect || previous.aspect || ($('#aspectRatio')?.value || '').split(' ')[0],
-    quality: extra.quality || previous.quality || qualityLabel($('#qualityPreset')?.value),
-    duration: extra.duration || previous.duration || (($('#durationRange')?.value || '10') + 's'),
-    instance: extra.instance || previous.instance || instanceLabel($('#instanceType')?.value),
-    prompt: extra.prompt ?? previous.prompt ?? ($('#promptInput')?.value || '').trim().slice(0, 120),
+    aspect: extra.aspect || previous.aspect || '',
+    quality: extra.quality || previous.quality || '',
+    duration: extra.duration || previous.duration || '',
+    instance: extra.instance || previous.instance || instanceLabel($('#instanceType').value),
+    prompt: extra.prompt ?? previous.prompt ?? '',
     resultUrl: primary?.url || previous.resultUrl || '',
     outputType: primary?.outputType || previous.outputType || '',
+    errorCode: task?.errorCode || previous.errorCode || '',
     errorMessage: task?.errorMessage || previous.errorMessage || ''
   };
 
   saveHistory([next, ...items.filter(item => item.taskId !== taskId)]);
-  if (!$('#historyOverlay')?.classList.contains('hidden')) renderHistory();
-}
-
-function historyStatusText(status) {
-  return {
-    QUEUED:'排队中',
-    RUNNING:'生成中',
-    SUCCESS:'已完成',
-    FAILED:'失败'
-  }[status] || status || '未知';
-}
-
-function formatHistoryTime(value) {
-  try {
-    return new Intl.DateTimeFormat('zh-CN',{
-      month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'
-    }).format(new Date(value));
-  } catch {
-    return '';
-  }
-}
-
-function renderHistory() {
-  const list = $('#historyList');
-  if (!list) return;
-
-  const items = getHistory();
-  if (!items.length) {
-    list.innerHTML =
-      '<div class="history-empty">' +
-        '<strong>还没有生成记录</strong>' +
-        '<span>提交任务后会自动出现在这里。</span>' +
-      '</div>';
-    return;
-  }
-
-  list.innerHTML = items.map(item => {
-    const statusClass = String(item.status || '').toLowerCase();
-    const prompt = item.prompt ? esc(item.prompt) : '未保存提示词摘要';
-    const canLoad = item.taskId ? '' : ' disabled';
-    return (
-      '<article class="history-item">' +
-        '<div class="history-item-head">' +
-          '<div>' +
-            '<span>' + esc(formatHistoryTime(item.createdAt)) + '</span>' +
-            '<strong>' + esc(prompt) + '</strong>' +
-          '</div>' +
-          '<i class="history-status ' + esc(statusClass) + '">' + esc(historyStatusText(item.status)) + '</i>' +
-        '</div>' +
-        '<div class="history-meta">' +
-          '<span>' + esc(item.aspect || '—') + '</span>' +
-          '<span>' + esc(item.quality || '—') + '</span>' +
-          '<span>' + esc(item.duration || '—') + '</span>' +
-          '<span>' + esc(item.instance || '—') + '</span>' +
-        '</div>' +
-        '<div class="history-task">TASK · ' + esc(item.taskId) + '</div>' +
-        '<button class="history-load" type="button" data-history-task="' + esc(item.taskId) + '"' + canLoad + '>' +
-          (item.status === 'SUCCESS' ? '载入结果' : '查看任务') +
-          '<b>↗</b>' +
-        '</button>' +
-      '</article>'
-    );
-  }).join('');
 }
 
 function closeDrawers() {
-  $('.drawer-overlay').forEach(el => el.classList.add('hidden'));
+  $$('.drawer-overlay').forEach(el => el.classList.add('hidden'));
   document.body.style.overflow = '';
 }
 
 function openSettings() {
   closeDrawers();
   $('#apiKeyInput').value = '';
+  $('#settingsCurrentApp').textContent = APPS[state.activeApp].title;
   $('#settingsOverlay').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 }
@@ -276,7 +299,8 @@ function openHistory() {
 
 $('#openSettings').onclick = openSettings;
 $('#openHistory').onclick = openHistory;
-$('[data-close],[data-close-history]').forEach(el => el.onclick = closeDrawers);
+$$('[data-close]').forEach(el => el.onclick = closeDrawers);
+
 window.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeDrawers();
 });
@@ -293,10 +317,12 @@ function clearFile(slot, rerender=true) {
 function setFile(slot, file) {
   clearFile(slot, false);
   if (!file) return;
+
   if (file.size > MAX_RH_UPLOAD_BYTES) {
     toast('单个文件不能超过 30MB：' + file.name, 'bad');
     return;
   }
+
   state.files[slot] = file;
   if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
     state.objectUrls[slot] = URL.createObjectURL(file);
@@ -317,6 +343,7 @@ function renderFileSlot(slot) {
     const preview = el.querySelector('.media-preview');
     const caption = el.querySelector('.media-caption strong');
     const index = ['img141','img142','img143','img161','img175','img176'].indexOf(slot) + 1;
+
     if (file) {
       preview.innerHTML = '<img src="' + esc(state.objectUrls[slot]) + '" alt="">';
       caption.textContent = file.name;
@@ -330,6 +357,7 @@ function renderFileSlot(slot) {
     const preview = el.querySelector('.video-reference-preview');
     const title = el.querySelector('.video-reference-copy strong');
     const subtitle = el.querySelector('.video-reference-copy small');
+
     if (file) {
       preview.innerHTML = '<video src="' + esc(state.objectUrls[slot]) + '" muted playsinline preload="metadata"></video>';
       title.textContent = file.name;
@@ -385,6 +413,7 @@ function extractUploadValue(data) {
 async function parseUploadResponse(res) {
   const data = await res.json().catch(() => ({}));
   const apiFailed = data?.code != null && Number(data.code) !== 0;
+
   if (!res.ok || apiFailed) {
     throw new Error(
       data?.message ||
@@ -462,35 +491,47 @@ async function uploadFile(file, key) {
         } catch {}
       }
 
-      const reason =
-        directError?.message ||
-        rewriteError?.message ||
-        '未知上传错误';
-
-      throw new Error('文件直传 RunningHub 失败：' + reason);
+      throw new Error(
+        '文件直传 RunningHub 失败：' +
+        (directError?.message || rewriteError?.message || '未知上传错误')
+      );
     }
   }
 }
 
-function setStatus(status, meta='') {
-  const dot = $('#statusDot');
-  dot.className = 'status-dot';
-  if (['RUNNING','QUEUED','UPLOADING','SUBMITTING'].includes(status)) dot.classList.add('running');
-  if (status === 'SUCCESS') dot.classList.add('success');
-  if (status === 'FAILED') dot.classList.add('failed');
+async function runRHApp(appId, nodeInfoList) {
+  const res = await fetch('/api/rh/run', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-rh-key':apiKey()
+    },
+    body:JSON.stringify({
+      appId,
+      nodeInfoList,
+      instanceType:$('#instanceType').value || 'default',
+      usePersonalQueue:'false'
+    })
+  });
 
-  const names = {
-    IDLE:'等待生成',
-    UPLOADING:'上传参考素材',
-    SUBMITTING:'提交任务',
-    QUEUED:'排队中',
-    RUNNING:'生成中',
-    SUCCESS:'生成完成',
-    FAILED:'生成失败'
-  };
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ('提交失败 (' + res.status + ')'));
+  return data;
+}
 
-  $('#statusText').textContent = names[status] || status;
-  $('#taskMeta').textContent = meta || 'READY';
+async function queryRH(taskId) {
+  const res = await fetch('/api/rh/query', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-rh-key':apiKey()
+    },
+    body:JSON.stringify({taskId})
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ('查询失败 (' + res.status + ')'));
+  return data;
 }
 
 function toMediaUrl(url) {
@@ -504,82 +545,6 @@ function toMediaUrl(url) {
   return url;
 }
 
-function setDownload(url='', type='') {
-  state.outputSourceUrl = url || '';
-  state.outputUrl = toMediaUrl(url || '');
-  state.outputType = type || '';
-  $('#downloadBtn').disabled = !state.outputUrl;
-}
-
-function renderIdle() {
-  setStatus('IDLE','READY');
-  setDownload();
-  $('#resultArea').innerHTML =
-    '<div class="empty-state">' +
-      '<div class="empty-mark">▶</div>' +
-      '<strong>准备生成你的下一段视频</strong>' +
-      '<span>添加参考素材并输入提示词，生成结果会直接显示在这里。</span>' +
-    '</div>';
-}
-
-function renderLoading(status, taskId) {
-  setStatus(status, taskId ? ('TASK · ' + taskId) : 'PROCESSING');
-  setDownload();
-  $('#resultArea').innerHTML =
-    '<div class="loading-state">' +
-      '<div class="loading-mark"></div>' +
-      '<strong>' + (status === 'QUEUED' ? '任务正在排队' : '视频正在生成') + '</strong>' +
-      '<span>状态每 3 秒自动刷新。</span>' +
-    '</div>';
-}
-
-function isVideo(item) {
-  const type = String(item?.outputType || '').toLowerCase();
-  const url = String(item?.url || '').toLowerCase();
-  return type.includes('video') || ['mp4','webm','mov','m4v'].includes(type) || /\.(mp4|webm|mov|m4v)(\?|$)/.test(url);
-}
-
-function isImage(item) {
-  const type = String(item?.outputType || '').toLowerCase();
-  const url = String(item?.url || '').toLowerCase();
-  return type.includes('image') || ['png','jpg','jpeg','webp','gif','avif'].includes(type) || /\.(png|jpe?g|webp|gif|avif)(\?|$)/.test(url);
-}
-
-function renderSuccess(task) {
-  const results = Array.isArray(task?.results) ? task.results : [];
-  const primary = results.find(isVideo) || results.find(isImage) || results[0];
-  setStatus('SUCCESS', task?.taskId ? ('TASK · ' + task.taskId) : 'DONE');
-
-  if (!primary) {
-    setDownload();
-    $('#resultArea').innerHTML =
-      '<div class="empty-state"><div class="empty-mark">✓</div><strong>任务完成</strong><span>没有返回可预览媒体。</span></div>';
-    return;
-  }
-
-  const url = primary.url || '';
-  const mediaUrl = toMediaUrl(url);
-  const type = String(primary.outputType || 'output').toLowerCase();
-  setDownload(url, type);
-
-  if (isVideo(primary) && url) {
-    $('#resultArea').innerHTML = '<video src="' + esc(mediaUrl) + '" controls playsinline preload="metadata"></video>';
-    const video = $('#resultArea video');
-    if (video) {
-      video.addEventListener('error', () => {
-        const code = video.error?.code || '';
-        toast('视频已生成，但浏览器加载失败' + (code ? ' · MEDIA_ERR_' + code : ''), 'bad');
-      }, { once:true });
-    }
-  } else if (isImage(primary) && url) {
-    $('#resultArea').innerHTML = '<img src="' + esc(mediaUrl) + '" alt="generated output">';
-  } else if (primary.text) {
-    $('#resultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
-  } else {
-    $('#resultArea').innerHTML = '<div class="file-state"><strong>' + esc(type.toUpperCase()) + '</strong></div>';
-  }
-}
-
 function parseMaybeJson(value) {
   if (value == null || value === '') return null;
   if (typeof value !== 'string') return value;
@@ -589,15 +554,17 @@ function parseMaybeJson(value) {
 function formatDiagnostic(value) {
   const parsed = parseMaybeJson(value);
   if (parsed == null || parsed === '') return '';
+
   if (typeof parsed === 'object') {
     if (!Array.isArray(parsed) && Object.keys(parsed).length === 0) return '';
     try {
       const text = JSON.stringify(parsed, null, 2);
-      return text.length > 3600 ? text.slice(0, 3600) + '\n…' : text;
+      return text.length > 3600 ? text.slice(0,3600) + '\n…' : text;
     } catch {}
   }
+
   const text = String(parsed);
-  return text.length > 3600 ? text.slice(0, 3600) + '\n…' : text;
+  return text.length > 3600 ? text.slice(0,3600) + '\n…' : text;
 }
 
 function collectFailureNodes(task) {
@@ -611,13 +578,15 @@ function collectFailureNodes(task) {
 
   const visit = (value, depth=0) => {
     if (value == null || depth > 6) return;
+
     if (Array.isArray(value)) {
       value.forEach(v => visit(v, depth + 1));
       return;
     }
+
     if (typeof value !== 'object') return;
 
-    for (const [key, val] of Object.entries(value)) {
+    for (const [key,val] of Object.entries(value)) {
       if (/^(nodeId|node_id)$/i.test(key) && val != null && val !== '') {
         nodes.add(String(val));
       } else if (/^\d+$/.test(key) && val && typeof val === 'object') {
@@ -631,10 +600,7 @@ function collectFailureNodes(task) {
   return [...nodes];
 }
 
-function renderFailed(task, message) {
-  setStatus('FAILED', task?.taskId ? ('TASK · ' + task.taskId) : 'ERROR');
-  setDownload();
-
+function failureHtml(task, message) {
   const errorCode = String(task?.errorCode || '').trim();
   const errorMessage = String(message || task?.errorMessage || 'RunningHub 返回任务失败。').trim();
   const nodes = collectFailureNodes(task);
@@ -655,16 +621,109 @@ function renderFailed(task, message) {
     details += '<details class="failure-detail"><summary>promptTips</summary><pre>' + esc(promptTips) + '</pre></details>';
   }
 
-  $('#resultArea').innerHTML =
+  return (
     '<div class="error-state diagnostic-error">' +
       '<div class="empty-mark">!</div>' +
       '<strong>生成失败</strong>' +
       '<span class="failure-message">' + esc(errorMessage) + '</span>' +
       (details ? '<div class="failure-diagnostics">' + details + '</div>' : '') +
+    '</div>'
+  );
+}
+
+function statusClass(dot, status) {
+  dot.className = 'status-dot';
+  if (['RUNNING','QUEUED','UPLOADING','SUBMITTING'].includes(status)) dot.classList.add('running');
+  if (status === 'SUCCESS') dot.classList.add('success');
+  if (status === 'FAILED') dot.classList.add('failed');
+}
+
+function setVideoStatus(status, meta='') {
+  const names = {
+    IDLE:'等待生成',
+    UPLOADING:'上传参考素材',
+    SUBMITTING:'提交任务',
+    QUEUED:'排队中',
+    RUNNING:'生成中',
+    SUCCESS:'生成完成',
+    FAILED:'生成失败'
+  };
+
+  statusClass($('#statusDot'), status);
+  $('#statusText').textContent = names[status] || status;
+  $('#taskMeta').textContent = meta || 'READY';
+}
+
+function setVideoDownload(url='', type='') {
+  videoState.outputSourceUrl = url || '';
+  videoState.outputUrl = toMediaUrl(url || '');
+  videoState.outputType = type || '';
+  $('#downloadBtn').disabled = !videoState.outputUrl;
+}
+
+function renderVideoIdle() {
+  setVideoStatus('IDLE','READY');
+  setVideoDownload();
+  $('#resultArea').innerHTML =
+    '<div class="empty-state">' +
+      '<div class="empty-mark">▶</div>' +
+      '<strong>准备生成你的下一段视频</strong>' +
+      '<span>添加参考素材并输入提示词，生成结果会直接显示在这里。</span>' +
     '</div>';
 }
 
-function getFixedNodeInfo() {
+function renderVideoLoading(status, taskId) {
+  setVideoStatus(status, taskId ? ('TASK · ' + taskId) : 'PROCESSING');
+  setVideoDownload();
+  $('#resultArea').innerHTML =
+    '<div class="loading-state">' +
+      '<div class="loading-mark"></div>' +
+      '<strong>' + (status === 'QUEUED' ? '任务正在排队' : '视频正在生成') + '</strong>' +
+      '<span>状态每 3 秒自动刷新。</span>' +
+    '</div>';
+}
+
+function renderVideoSuccess(task) {
+  const results = Array.isArray(task?.results) ? task.results : [];
+  const primary = results.find(isVideo) || results.find(isImage) || results[0];
+
+  setVideoStatus('SUCCESS', task?.taskId ? ('TASK · ' + task.taskId) : 'DONE');
+
+  if (!primary) {
+    setVideoDownload();
+    $('#resultArea').innerHTML =
+      '<div class="empty-state"><div class="empty-mark">✓</div><strong>任务完成</strong><span>没有返回可预览媒体。</span></div>';
+    return;
+  }
+
+  const url = primary.url || '';
+  const mediaUrl = toMediaUrl(url);
+  const type = String(primary.outputType || 'output').toLowerCase();
+  setVideoDownload(url, type);
+
+  if (isVideo(primary) && url) {
+    $('#resultArea').innerHTML = '<video src="' + esc(mediaUrl) + '" controls playsinline preload="metadata"></video>';
+    const video = $('#resultArea video');
+    video?.addEventListener('error', () => {
+      const code = video.error?.code || '';
+      toast('视频已生成，但浏览器加载失败' + (code ? ' · MEDIA_ERR_' + code : ''), 'bad');
+    }, {once:true});
+  } else if (isImage(primary) && url) {
+    $('#resultArea').innerHTML = '<img src="' + esc(mediaUrl) + '" alt="generated output">';
+  } else if (primary.text) {
+    $('#resultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
+  } else {
+    $('#resultArea').innerHTML = '<div class="file-state"><strong>' + esc(type.toUpperCase()) + '</strong></div>';
+  }
+}
+
+function renderVideoFailed(task, message) {
+  setVideoStatus('FAILED', task?.taskId ? ('TASK · ' + task.taskId) : 'ERROR');
+  setVideoDownload();
+  $('#resultArea').innerHTML = failureHtml(task, message);
+}
+
+function getVideoFixedNodes() {
   return [
     {nodeId:'171',fieldName:'value',fieldValue:'false',description:null},
     {nodeId:'163',fieldName:'value',fieldValue:'false',description:null},
@@ -679,8 +738,8 @@ function getFixedNodeInfo() {
   ];
 }
 
-async function runTask() {
-  if (state.running) return;
+async function runVideoTask() {
+  if (videoState.running) return;
 
   const key = apiKey();
   if (!key) {
@@ -696,21 +755,19 @@ async function runTask() {
     return;
   }
 
-  const appId = $('#appId').value.trim() || APP_ID;
-  const selectedFiles = Object.entries(state.files);
-
-  state.running = true;
+  videoState.running = true;
   $('#runBtn').disabled = true;
   $('.generate-label').textContent = '准备任务…';
-  setDownload();
+  setVideoDownload();
 
   try {
+    const selectedFiles = Object.entries(state.files);
     const uploadValues = {};
     let uploaded = 0;
 
-    for (const [slot, file] of selectedFiles) {
+    for (const [slot,file] of selectedFiles) {
       uploaded++;
-      setStatus('UPLOADING', uploaded + ' / ' + selectedFiles.length);
+      setVideoStatus('UPLOADING', uploaded + ' / ' + selectedFiles.length);
       $('.generate-label').textContent = '上传素材 ' + uploaded + '/' + selectedFiles.length;
       uploadValues[slot] = await uploadFile(file, key);
     }
@@ -718,10 +775,10 @@ async function runTask() {
     const nodeInfoList = [
       {nodeId:'150',fieldName:'value',fieldValue:prompt,description:null},
       {nodeId:'115',fieldName:'aspect_ratio',fieldValue:$('#aspectRatio').value,description:null},
-      ...getFixedNodeInfo()
+      ...getVideoFixedNodes()
     ];
 
-    for (const [slot, config] of Object.entries(MEDIA)) {
+    for (const [slot,config] of Object.entries(MEDIA)) {
       nodeInfoList.push({
         nodeId:config.nodeId,
         fieldName:config.fieldName,
@@ -730,28 +787,13 @@ async function runTask() {
       });
     }
 
-    setStatus('SUBMITTING','RUNNINGHUB');
+    setVideoStatus('SUBMITTING','RUNNINGHUB');
     $('.generate-label').textContent = '提交任务…';
 
-    const res = await fetch('/api/rh/run', {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-rh-key':key
-      },
-      body:JSON.stringify({
-        appId,
-        nodeInfoList,
-        instanceType:$('#instanceType').value || 'default',
-        usePersonalQueue:'false'
-      })
-    });
+    const data = await runRHApp(APPS[APP_KEYS.video].appId, nodeInfoList);
+    videoState.task = data;
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || ('提交失败 (' + res.status + ')'));
-
-    state.task = data;
-    upsertHistory(data,{
+    upsertHistory(APP_KEYS.video, data, {
       createdAt:Date.now(),
       aspect:($('#aspectRatio').value || '').split(' ')[0],
       quality:qualityLabel($('#qualityPreset').value),
@@ -759,100 +801,271 @@ async function runTask() {
       instance:instanceLabel($('#instanceType').value),
       prompt:prompt.slice(0,120)
     });
+
     toast('视频生成任务已提交','good');
 
     if (data.status === 'SUCCESS') {
-      renderSuccess(data);
+      renderVideoSuccess(data);
     } else if (data.status === 'FAILED') {
-      renderFailed(data);
+      renderVideoFailed(data);
     } else {
-      renderLoading(data.status || 'RUNNING', data.taskId);
+      renderVideoLoading(data.status || 'RUNNING', data.taskId);
       if (data.taskId) {
-        clearInterval(state.poll);
-        state.poll = setInterval(() => queryTask(data.taskId), 3000);
+        clearInterval(videoState.poll);
+        videoState.poll = setInterval(() => queryVideoTask(data.taskId), 3000);
       }
     }
   } catch (error) {
-    renderFailed(state.task, error?.message || '运行失败');
+    renderVideoFailed(videoState.task, error?.message || '运行失败');
     toast(error?.message || '运行失败','bad');
   } finally {
-    state.running = false;
+    videoState.running = false;
     $('#runBtn').disabled = false;
     $('.generate-label').textContent = '开始生成';
   }
 }
 
-async function queryTask(taskId) {
+async function queryVideoTask(taskId) {
   try {
-    const res = await fetch('/api/rh/query', {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-rh-key':apiKey()
-      },
-      body:JSON.stringify({taskId})
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || ('查询失败 (' + res.status + ')'));
-
-    state.task = data;
+    const data = await queryRH(taskId);
+    videoState.task = data;
     const status = data.status || 'RUNNING';
-    upsertHistory(data,{taskId});
+
+    upsertHistory(APP_KEYS.video, data, {taskId});
 
     if (status === 'SUCCESS') {
-      clearInterval(state.poll);
-      state.poll = null;
-      renderSuccess(data);
+      clearInterval(videoState.poll);
+      videoState.poll = null;
+      renderVideoSuccess(data);
       toast('视频生成完成','good');
     } else if (status === 'FAILED') {
-      clearInterval(state.poll);
-      state.poll = null;
-      renderFailed(data);
+      clearInterval(videoState.poll);
+      videoState.poll = null;
+      renderVideoFailed(data);
       toast('视频生成失败','bad');
     } else {
-      renderLoading(status, data.taskId || taskId);
+      renderVideoLoading(status, data.taskId || taskId);
     }
   } catch (error) {
-    clearInterval(state.poll);
-    state.poll = null;
-    renderFailed(state.task, error?.message || '任务查询失败');
+    clearInterval(videoState.poll);
+    videoState.poll = null;
+    renderVideoFailed(videoState.task, error?.message || '任务查询失败');
     toast(error?.message || '任务查询失败','bad');
   }
 }
 
-async function downloadOutput() {
-  if (!state.outputUrl) return;
+function setImageStatus(status, meta='') {
+  const names = {
+    IDLE:'等待生成',
+    SUBMITTING:'提交任务',
+    QUEUED:'排队中',
+    RUNNING:'生成中',
+    SUCCESS:'生成完成',
+    FAILED:'生成失败'
+  };
 
-  const btn = $('#downloadBtn');
-  const original = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '<span>下载中</span><b>↓</b>';
+  statusClass($('#imageStatusDot'), status);
+  $('#imageStatusText').textContent = names[status] || status;
+  $('#imageTaskMeta').textContent = meta || 'READY';
+}
+
+function setImageDownload(url='', type='') {
+  imageState.outputSourceUrl = url || '';
+  imageState.outputUrl = toMediaUrl(url || '');
+  imageState.outputType = type || '';
+  $('#imageDownloadBtn').disabled = !imageState.outputUrl;
+}
+
+function renderImageIdle() {
+  setImageStatus('IDLE','READY');
+  setImageDownload();
+  $('#imageResultArea').innerHTML =
+    '<div class="empty-state">' +
+      '<div class="empty-mark">＋</div>' +
+      '<strong>准备生成图片</strong>' +
+      '<span>输入提示词并设置画幅，生成结果会显示在这里。</span>' +
+    '</div>';
+}
+
+function renderImageLoading(status, taskId) {
+  setImageStatus(status, taskId ? ('TASK · ' + taskId) : 'PROCESSING');
+  setImageDownload();
+  $('#imageResultArea').innerHTML =
+    '<div class="loading-state">' +
+      '<div class="loading-mark"></div>' +
+      '<strong>' + (status === 'QUEUED' ? '任务正在排队' : '图片正在生成') + '</strong>' +
+      '<span>状态每 3 秒自动刷新。</span>' +
+    '</div>';
+}
+
+function renderImageSuccess(task) {
+  const results = Array.isArray(task?.results) ? task.results : [];
+  const images = results.filter(isImage);
+  const primary = images[0] || results[0];
+
+  setImageStatus('SUCCESS', task?.taskId ? ('TASK · ' + task.taskId) : 'DONE');
+
+  if (!primary) {
+    setImageDownload();
+    $('#imageResultArea').innerHTML =
+      '<div class="empty-state"><div class="empty-mark">✓</div><strong>任务完成</strong><span>没有返回可预览图片。</span></div>';
+    return;
+  }
+
+  const url = primary.url || '';
+  const type = String(primary.outputType || 'png').toLowerCase();
+  setImageDownload(url, type);
+
+  if (images.length > 1) {
+    $('#imageResultArea').innerHTML =
+      '<div class="image-result-grid">' +
+        images.map(item => '<img src="' + esc(toMediaUrl(item.url || '')) + '" alt="generated image">').join('') +
+      '</div>';
+  } else if (url) {
+    $('#imageResultArea').innerHTML = '<img src="' + esc(toMediaUrl(url)) + '" alt="generated image">';
+  } else if (primary.text) {
+    $('#imageResultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
+  }
+}
+
+function renderImageFailed(task, message) {
+  setImageStatus('FAILED', task?.taskId ? ('TASK · ' + task.taskId) : 'ERROR');
+  setImageDownload();
+  $('#imageResultArea').innerHTML = failureHtml(task, message);
+}
+
+function getImageNodes(prompt) {
+  return [
+    {nodeId:'214',fieldName:'text',fieldValue:prompt,description:null},
+    {nodeId:'218',fieldName:'value',fieldValue:'false',description:null},
+    {nodeId:'180',fieldName:'aspect_ratio',fieldValue:$('#imageAspectRatio').value,description:null},
+    {nodeId:'180',fieldName:'megapixels',fieldValue:'2',description:null},
+    {nodeId:'179',fieldName:'value',fieldValue:'1',description:null},
+    {nodeId:'216',fieldName:'strength_model',fieldValue:'0.45000000000000007',description:null},
+    {nodeId:'210',fieldName:'value',fieldValue:'false',description:null}
+  ];
+}
+
+async function runImageTask() {
+  if (imageState.running) return;
+
+  if (!apiKey()) {
+    toast('请先在设置中保存 RunningHub API Key','bad');
+    openSettings();
+    return;
+  }
+
+  const prompt = $('#imagePromptInput').value.trim();
+  if (!prompt) {
+    toast('请输入图片提示词','bad');
+    $('#imagePromptInput').focus();
+    return;
+  }
+
+  imageState.running = true;
+  $('#imageRunBtn').disabled = true;
+  $('.image-generate-label').textContent = '提交任务…';
+  setImageDownload();
+  setImageStatus('SUBMITTING','RUNNINGHUB');
 
   try {
-    const ext = (state.outputType || 'mp4').replace(/[^a-z0-9]/gi,'') || 'mp4';
+    const data = await runRHApp(APPS[APP_KEYS.image].appId, getImageNodes(prompt));
+    imageState.task = data;
+
+    upsertHistory(APP_KEYS.image, data, {
+      createdAt:Date.now(),
+      aspect:($('#imageAspectRatio').value || '').split(' ')[0],
+      quality:'2MP',
+      duration:'',
+      instance:instanceLabel($('#instanceType').value),
+      prompt:prompt.slice(0,120)
+    });
+
+    toast('图片生成任务已提交','good');
+
+    if (data.status === 'SUCCESS') {
+      renderImageSuccess(data);
+    } else if (data.status === 'FAILED') {
+      renderImageFailed(data);
+    } else {
+      renderImageLoading(data.status || 'RUNNING', data.taskId);
+      if (data.taskId) {
+        clearInterval(imageState.poll);
+        imageState.poll = setInterval(() => queryImageTask(data.taskId), 3000);
+      }
+    }
+  } catch (error) {
+    renderImageFailed(imageState.task, error?.message || '运行失败');
+    toast(error?.message || '运行失败','bad');
+  } finally {
+    imageState.running = false;
+    $('#imageRunBtn').disabled = false;
+    $('.image-generate-label').textContent = '开始生成';
+  }
+}
+
+async function queryImageTask(taskId) {
+  try {
+    const data = await queryRH(taskId);
+    imageState.task = data;
+    const status = data.status || 'RUNNING';
+
+    upsertHistory(APP_KEYS.image, data, {taskId});
+
+    if (status === 'SUCCESS') {
+      clearInterval(imageState.poll);
+      imageState.poll = null;
+      renderImageSuccess(data);
+      toast('图片生成完成','good');
+    } else if (status === 'FAILED') {
+      clearInterval(imageState.poll);
+      imageState.poll = null;
+      renderImageFailed(data);
+      toast('图片生成失败','bad');
+    } else {
+      renderImageLoading(status, data.taskId || taskId);
+    }
+  } catch (error) {
+    clearInterval(imageState.poll);
+    imageState.poll = null;
+    renderImageFailed(imageState.task, error?.message || '任务查询失败');
+    toast(error?.message || '任务查询失败','bad');
+  }
+}
+
+function triggerDownload(outputState, button, prefix) {
+  if (!outputState.outputUrl) return;
+
+  const original = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = '<span>下载中</span><b>↓</b>';
+
+  try {
+    const ext = (outputState.outputType || 'bin').replace(/[^a-z0-9]/gi,'') || 'bin';
     const a = document.createElement('a');
-    a.href = state.outputUrl;
-    a.download = 'rh-studio-output.' + ext;
+    a.href = outputState.outputUrl;
+    a.download = prefix + '.' + ext;
     a.rel = 'noreferrer';
     document.body.appendChild(a);
     a.click();
     a.remove();
     toast('已开始下载','good');
   } catch {
-    const fallback = state.outputSourceUrl || state.outputUrl;
+    const fallback = outputState.outputSourceUrl || outputState.outputUrl;
     window.open(fallback, '_blank', 'noopener,noreferrer');
     toast('下载失败，已打开原文件','bad');
   } finally {
     setTimeout(() => {
-      btn.disabled = !state.outputUrl;
-      btn.innerHTML = original;
+      button.disabled = !outputState.outputUrl;
+      button.innerHTML = original;
     }, 450);
   }
 }
 
-$('#runBtn').onclick = runTask;
-$('#downloadBtn').onclick = downloadOutput;
+$('#runBtn').onclick = runVideoTask;
+$('#downloadBtn').onclick = () => triggerDownload(videoState, $('#downloadBtn'), 'rh-studio-video');
+$('#imageRunBtn').onclick = runImageTask;
+$('#imageDownloadBtn').onclick = () => triggerDownload(imageState, $('#imageDownloadBtn'), 'rh-studio-image');
 
 $('#toggleKey').onclick = () => {
   const input = $('#apiKeyInput');
@@ -863,6 +1076,7 @@ $('#toggleKey').onclick = () => {
 $('#saveKey').onclick = () => {
   const value = $('#apiKeyInput').value.trim();
   if (!value) return toast('请输入 API Key','bad');
+
   localStorage.setItem(LS.key,value);
   $('#apiKeyInput').value = '';
   updateKeyUI();
@@ -877,102 +1091,48 @@ $('#clearKey').onclick = () => {
 };
 
 $('#clearLocal').onclick = () => {
-  [LS.app,LS.prompt,LS.aspect,LS.quality,LS.duration,LS.inst].forEach(k => localStorage.removeItem(k));
+  [
+    LS.active,
+    LS.prompt,
+    LS.aspect,
+    LS.quality,
+    LS.duration,
+    LS.imagePrompt,
+    LS.imageAspect,
+    LS.inst
+  ].forEach(k => localStorage.removeItem(k));
+
   Object.keys(state.files).forEach(slot => clearFile(slot));
   loadConfig();
-  renderIdle();
+  renderVideoIdle();
+  renderImageIdle();
+  setActiveApp(APP_KEYS.video);
   toast('本地应用配置已重置');
 };
-
-$('#clearHistory').onclick = () => {
-  localStorage.removeItem(LS.history);
-  renderHistory();
-  toast('生成记录已清空');
-};
-
-async function importHistoryTask() {
-  const input = $('#historyTaskInput');
-  const taskId = String(input?.value || '').trim();
-  if (!taskId) {
-    toast('请输入 RunningHub Task ID', 'bad');
-    input?.focus();
-    return;
-  }
-  if (!/^\d{10,}$/.test(taskId)) {
-    toast('Task ID 格式不正确', 'bad');
-    input?.focus();
-    return;
-  }
-  if (!apiKey()) {
-    closeDrawers();
-    openSettings();
-    toast('请先配置 RunningHub API Key', 'bad');
-    return;
-  }
-
-  const button = $('#importHistoryTask');
-  const original = button.textContent;
-  button.disabled = true;
-  button.textContent = '查询中…';
-
-  try {
-    const res = await fetch('/api/rh/query', {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-rh-key':apiKey()
-      },
-      body:JSON.stringify({taskId})
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || ('查询失败 (' + res.status + ')'));
-
-    upsertHistory(data,{taskId,createdAt:Date.now()});
-    input.value = '';
-    renderHistory();
-    toast('任务已加入生成记录', 'good');
-  } catch (error) {
-    toast(error?.message || '导入任务失败', 'bad');
-  } finally {
-    button.disabled = false;
-    button.textContent = original;
-  }
-}
-
-$('#importHistoryTask').onclick = importHistoryTask;
-$('#historyTaskInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') importHistoryTask();
-});
-
-$('#historyList').addEventListener('click', e => {
-  const button = e.target.closest('[data-history-task]');
-  if (!button) return;
-  const taskId = button.dataset.historyTask;
-  if (!taskId) return;
-
-  if (!apiKey()) {
-    closeDrawers();
-    openSettings();
-    toast('请先配置 RunningHub API Key', 'bad');
-    return;
-  }
-
-  closeDrawers();
-  renderLoading('RUNNING', taskId);
-  queryTask(taskId);
-});
 
 loadConfig();
 updateKeyUI();
 Object.keys(MEDIA).forEach(renderFileSlot);
+renderVideoIdle();
+renderImageIdle();
 
-const recoveryTaskId = new URLSearchParams(window.location.search).get('task');
-if (recoveryTaskId && apiKey()) {
-  renderLoading('RUNNING', recoveryTaskId);
-  queryTask(recoveryTaskId);
-} else {
-  renderIdle();
-  if (recoveryTaskId && !apiKey()) {
-    toast('请先在设置中保存 API Key，再打开任务恢复链接', 'bad');
+const params = new URLSearchParams(window.location.search);
+const requestedApp = params.get('app');
+const recoveryTaskId = params.get('task');
+const initialApp = APPS[requestedApp]
+  ? requestedApp
+  : (APPS[localStorage.getItem(LS.active)] ? localStorage.getItem(LS.active) : APP_KEYS.video);
+
+setActiveApp(initialApp, false);
+
+if (recoveryTaskId) {
+  if (!apiKey()) {
+    toast('请先在设置中保存 API Key，再恢复任务', 'bad');
+  } else if (initialApp === APP_KEYS.image) {
+    renderImageLoading('RUNNING', recoveryTaskId);
+    queryImageTask(recoveryTaskId);
+  } else {
+    renderVideoLoading('RUNNING', recoveryTaskId);
+    queryVideoTask(recoveryTaskId);
   }
 }
