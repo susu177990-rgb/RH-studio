@@ -2516,6 +2516,227 @@ async function querySkinUpscaleTask(taskId) {
   }
 }
 
+function setMultiFastStatus(status, meta='') {
+  const names = {
+    IDLE:'等待生成',
+    UPLOADING:'上传参考素材',
+    SUBMITTING:'提交任务',
+    QUEUED:'排队中',
+    RUNNING:'生成中',
+    SUCCESS:'生成完成',
+    FAILED:'生成失败'
+  };
+  statusClass($('#multiFastStatusDot'), status);
+  $('#multiFastStatusText').textContent = names[status] || status;
+  $('#multiFastTaskMeta').textContent = meta || 'READY';
+}
+
+function setMultiFastDownload(url='', type='') {
+  multiFastState.outputSourceUrl = url || '';
+  multiFastState.outputUrl = toMediaUrl(url || '');
+  multiFastState.outputType = type || '';
+  $('#multiFastDownloadBtn').disabled = !multiFastState.outputUrl;
+}
+
+function renderMultiFastIdle() {
+  setMultiFastStatus('IDLE','READY');
+  setMultiFastDownload();
+  $('#multiFastResultArea').innerHTML =
+    '<div class="empty-state">' +
+      '<div class="empty-mark">▶</div>' +
+      '<strong>准备生成视频</strong>' +
+      '<span>添加参考素材并输入提示词，结果会显示在这里。</span>' +
+    '</div>';
+}
+
+function renderMultiFastLoading(status, taskId) {
+  setMultiFastStatus(status, taskId ? ('TASK · ' + taskId) : 'PROCESSING');
+  setMultiFastDownload();
+  $('#multiFastResultArea').innerHTML =
+    '<div class="loading-state">' +
+      '<div class="loading-mark"></div>' +
+      '<strong>' + (status === 'QUEUED' ? '任务正在排队' : status === 'UPLOADING' ? '正在上传参考素材' : '视频正在生成') + '</strong>' +
+      '<span>' + (status === 'UPLOADING' ? '上传完成后会自动提交任务。' : '状态每 3 秒自动刷新。') + '</span>' +
+    '</div>';
+}
+
+function renderMultiFastSuccess(task) {
+  const results = Array.isArray(task?.results) ? task.results : [];
+  const primary = results.find(isVideo) || results.find(isImage) || results[0];
+
+  setMultiFastStatus('SUCCESS', task?.taskId ? ('TASK · ' + task.taskId) : 'DONE');
+
+  if (!primary) {
+    setMultiFastDownload();
+    $('#multiFastResultArea').innerHTML =
+      '<div class="empty-state"><div class="empty-mark">✓</div><strong>任务完成</strong><span>没有返回可预览媒体。</span></div>';
+    return;
+  }
+
+  const url = primary.url || '';
+  const mediaUrl = toMediaUrl(url);
+  const type = String(primary.outputType || 'output').toLowerCase();
+  setMultiFastDownload(url, type);
+
+  if (isVideo(primary) && url) {
+    $('#multiFastResultArea').innerHTML = '<video src="' + esc(mediaUrl) + '" controls playsinline preload="metadata"></video>';
+    const video = $('#multiFastResultArea video');
+    video?.addEventListener('error', () => {
+      const code = video.error?.code || '';
+      toast('视频已生成，但浏览器加载失败' + (code ? ' · MEDIA_ERR_' + code : ''), 'bad');
+    }, {once:true});
+  } else if (isImage(primary) && url) {
+    $('#multiFastResultArea').innerHTML = '<img src="' + esc(mediaUrl) + '" alt="generated output">';
+  } else if (primary.text) {
+    $('#multiFastResultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
+  } else {
+    $('#multiFastResultArea').innerHTML = '<div class="file-state"><strong>' + esc(type.toUpperCase()) + '</strong></div>';
+  }
+}
+
+function renderMultiFastFailed(task, message) {
+  setMultiFastStatus('FAILED', task?.taskId ? ('TASK · ' + task.taskId) : 'ERROR');
+  setMultiFastDownload();
+  $('#multiFastResultArea').innerHTML = failureHtml(task, message);
+}
+
+function getMultiFastFixedNodes() {
+  return [
+    {nodeId:'147',fieldName:'value',fieldValue:'0.4',description:null},
+    {nodeId:'132',fieldName:'value',fieldValue:'10',description:null},
+    {nodeId:'159',fieldName:'lora_name',fieldValue:'MysticXXX_MMH3-V2.safetensors',description:null},
+    {nodeId:'159',fieldName:'strength_model',fieldValue:'0',description:null},
+    {nodeId:'167',fieldName:'lora_name',fieldValue:'MysticXXX_MMH3-V2.safetensors',description:null},
+    {nodeId:'167',fieldName:'strength_model',fieldValue:'0',description:null},
+    {nodeId:'168',fieldName:'lora_name',fieldValue:'MysticXXX_MMH3-V2.safetensors',description:null},
+    {nodeId:'168',fieldName:'strength_model',fieldValue:'0',description:null},
+    {nodeId:'163',fieldName:'value',fieldValue:'false',description:null},
+    {nodeId:'158',fieldName:'value',fieldValue:'false',description:null}
+  ];
+}
+
+async function runMultiFastTask() {
+  if (multiFastState.running) return;
+
+  if (!apiKey()) {
+    toast('请先在设置中保存 RunningHub API Key','bad');
+    openSettings();
+    return;
+  }
+
+  const prompt = $('#multiFastPromptInput').value.trim();
+  if (!prompt) {
+    toast('请输入视频提示词','bad');
+    $('#multiFastPromptInput').focus();
+    return;
+  }
+
+  const imageSlots = Object.entries(MULTI_FAST_MEDIA).filter(([,config]) => config.kind === 'image').map(([slot]) => slot);
+  if (!imageSlots.some(slot => !!state.files[slot])) {
+    toast('请至少上传一张参考图','bad');
+    return;
+  }
+
+  multiFastState.running = true;
+  $('#multiFastRunBtn').disabled = true;
+  $('.multi-fast-generate-label').textContent = '准备任务…';
+  setMultiFastDownload();
+
+  try {
+    const selectedFiles = Object.entries(state.files).filter(([slot]) => !!MULTI_FAST_MEDIA[slot]);
+    const uploadValues = {};
+    let uploaded = 0;
+
+    for (const [slot,file] of selectedFiles) {
+      uploaded++;
+      renderMultiFastLoading('UPLOADING');
+      setMultiFastStatus('UPLOADING', uploaded + ' / ' + selectedFiles.length);
+      $('.multi-fast-generate-label').textContent = '上传素材 ' + uploaded + '/' + selectedFiles.length;
+      uploadValues[slot] = await uploadFile(file, apiKey());
+    }
+
+    const nodeInfoList = [
+      {nodeId:'150',fieldName:'value',fieldValue:prompt,description:null},
+      {nodeId:'115',fieldName:'aspect_ratio',fieldValue:$('#multiFastAspectRatio').value,description:null},
+      ...getMultiFastFixedNodes()
+    ];
+
+    for (const [slot,config] of Object.entries(MULTI_FAST_MEDIA)) {
+      nodeInfoList.push({
+        nodeId:config.nodeId,
+        fieldName:config.fieldName,
+        fieldValue:uploadValues[slot] || 'None',
+        description:null
+      });
+    }
+
+    setMultiFastStatus('SUBMITTING','RUNNINGHUB');
+    $('.multi-fast-generate-label').textContent = '提交任务…';
+
+    const data = await runRHApp(APPS[APP_KEYS.multiFast].appId, nodeInfoList);
+    multiFastState.task = data;
+
+    upsertHistory(APP_KEYS.multiFast, data, {
+      createdAt:Date.now(),
+      aspect:($('#multiFastAspectRatio').value || '').split(' ')[0],
+      quality:'加速版 · V2',
+      duration:'',
+      instance:instanceLabel($('#instanceType').value),
+      prompt:prompt.slice(0,120)
+    });
+
+    toast('视频生成任务已提交','good');
+
+    if (data.status === 'SUCCESS') {
+      renderMultiFastSuccess(data);
+    } else if (data.status === 'FAILED') {
+      renderMultiFastFailed(data);
+    } else {
+      renderMultiFastLoading(data.status || 'RUNNING', data.taskId);
+      if (data.taskId) {
+        clearInterval(multiFastState.poll);
+        multiFastState.poll = setInterval(() => queryMultiFastTask(data.taskId), 3000);
+      }
+    }
+  } catch (error) {
+    renderMultiFastFailed(multiFastState.task, error?.message || '运行失败');
+    toast(error?.message || '运行失败','bad');
+  } finally {
+    multiFastState.running = false;
+    $('#multiFastRunBtn').disabled = false;
+    $('.multi-fast-generate-label').textContent = '开始生成';
+  }
+}
+
+async function queryMultiFastTask(taskId) {
+  try {
+    const data = await queryRH(taskId);
+    multiFastState.task = data;
+    const status = data.status || 'RUNNING';
+
+    upsertHistory(APP_KEYS.multiFast, data, {taskId});
+
+    if (status === 'SUCCESS') {
+      clearInterval(multiFastState.poll);
+      multiFastState.poll = null;
+      renderMultiFastSuccess(data);
+      toast('视频生成完成','good');
+    } else if (status === 'FAILED') {
+      clearInterval(multiFastState.poll);
+      multiFastState.poll = null;
+      renderMultiFastFailed(data);
+      toast('视频生成失败','bad');
+    } else {
+      renderMultiFastLoading(status, data.taskId || taskId);
+    }
+  } catch (error) {
+    clearInterval(multiFastState.poll);
+    multiFastState.poll = null;
+    renderMultiFastFailed(multiFastState.task, error?.message || '任务查询失败');
+    toast(error?.message || '任务查询失败','bad');
+  }
+}
+
 function triggerDownload(outputState, button, prefix) {
   if (!outputState.outputUrl) return;
 
@@ -2559,6 +2780,8 @@ $('#faceT2IRunBtn').onclick = runFaceT2ITask;
 $('#faceT2IDownloadBtn').onclick = () => triggerDownload(faceT2IState, $('#faceT2IDownloadBtn'), 'rh-studio-face-t2i-v3');
 $('#skinUpscaleRunBtn').onclick = runSkinUpscaleTask;
 $('#skinUpscaleDownloadBtn').onclick = () => triggerDownload(skinUpscaleState, $('#skinUpscaleDownloadBtn'), 'rh-studio-skin-upscale');
+$('#multiFastRunBtn').onclick = runMultiFastTask;
+$('#multiFastDownloadBtn').onclick = () => triggerDownload(multiFastState, $('#multiFastDownloadBtn'), 'rh-studio-minimax-h3-multi-fast');
 
 $('#toggleKey').onclick = () => {
   const input = $('#apiKeyInput');
@@ -2603,6 +2826,8 @@ $('#clearLocal').onclick = () => {
     LS.faceT2IModelBranch,
     LS.faceT2IAspect,
     LS.faceT2IHD,
+    LS.multiFastPrompt,
+    LS.multiFastAspect,
     LS.appFilter,
     LS.inst
   ].forEach(k => localStorage.removeItem(k));
@@ -2618,6 +2843,7 @@ $('#clearLocal').onclick = () => {
   clearFaceT2IFile();
   renderSkinUpscaleIdle();
   clearSkinUpscaleFile();
+  renderMultiFastIdle();
   renderAppFilter('all', false, false);
   setActiveApp(APP_KEYS.video);
   toast('本地应用配置已重置');
@@ -2626,6 +2852,7 @@ $('#clearLocal').onclick = () => {
 loadConfig();
 updateKeyUI();
 Object.keys(MEDIA).forEach(renderFileSlot);
+Object.keys(MULTI_FAST_MEDIA).forEach(renderFileSlot);
 renderVideoIdle();
 renderImageIdle();
 renderImageUpscaleIdle();
@@ -2635,6 +2862,7 @@ renderFaceT2IIdle();
 renderFaceT2IInput();
 renderSkinUpscaleIdle();
 renderSkinUpscaleInput();
+renderMultiFastIdle();
 
 const params = new URLSearchParams(window.location.search);
 const requestedApp = params.get('app');
@@ -2667,6 +2895,9 @@ if (recoveryTaskId) {
   } else if (initialApp === APP_KEYS.skinUpscale) {
     renderSkinUpscaleLoading('RUNNING', recoveryTaskId);
     querySkinUpscaleTask(recoveryTaskId);
+  } else if (initialApp === APP_KEYS.multiFast) {
+    renderMultiFastLoading('RUNNING', recoveryTaskId);
+    queryMultiFastTask(recoveryTaskId);
   } else {
     renderVideoLoading('RUNNING', recoveryTaskId);
     queryVideoTask(recoveryTaskId);
