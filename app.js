@@ -110,6 +110,33 @@ const MULTI_FAST_MEDIA = {
   mfastVideo164: { nodeId:'164', fieldName:'video', kind:'video', label:'参考视频', subtitle:'可选视频参考' }
 };
 
+
+const MATERIAL_LIBRARY = [
+  { id:'image1', targetSlot:'img141', kind:'image', baseName:'图片1', accept:'image/*' },
+  { id:'image2', targetSlot:'img142', kind:'image', baseName:'图片2', accept:'image/*' },
+  { id:'image3', targetSlot:'img143', kind:'image', baseName:'图片3', accept:'image/*' },
+  { id:'image4', targetSlot:'img161', kind:'image', baseName:'图片4', accept:'image/*' },
+  { id:'image5', targetSlot:'img175', kind:'image', baseName:'图片5', accept:'image/*' },
+  { id:'image6', targetSlot:'img176', kind:'image', baseName:'图片6', accept:'image/*' },
+  { id:'video1', targetSlot:'video164', kind:'video', baseName:'视频1', accept:'video/*' },
+  { id:'audio1', targetSlot:'audio144', kind:'audio', baseName:'音频1', accept:'audio/*' },
+  { id:'audio2', targetSlot:'audio160', kind:'audio', baseName:'音频2', accept:'audio/*' },
+  { id:'audio3', targetSlot:'audio189', kind:'audio', baseName:'音频3', accept:'audio/*' }
+];
+
+const MATERIAL_BY_ID = Object.fromEntries(MATERIAL_LIBRARY.map(item => [item.id, item]));
+const MATERIAL_DB_NAME = 'rhstudio-material-library';
+const MATERIAL_DB_VERSION = 1;
+const MATERIAL_STORE_NAME = 'materials';
+
+const materialState = {
+  records: {},
+  objectUrls: {},
+  ready: false,
+  loading: null,
+  dbPromise: null
+};
+
 const state = {
   activeApp: APP_KEYS.video,
   appFilter: 'all',
@@ -542,11 +569,310 @@ function openHistory() {
 
 $('#openSettings').onclick = openSettings;
 $('#openHistory').onclick = openHistory;
+$('#openMaterialSettings').onclick = openMaterialSettings;
+$('#quickFillMaterials').onclick = fillSavedMaterials;
 $$('[data-close]').forEach(el => el.onclick = closeDrawers);
 
 window.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeDrawers();
 });
+
+
+function openMaterialDB() {
+  if (!('indexedDB' in window)) {
+    return Promise.reject(new Error('当前浏览器不支持本地素材缓存'));
+  }
+  if (materialState.dbPromise) return materialState.dbPromise;
+
+  materialState.dbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(MATERIAL_DB_NAME, MATERIAL_DB_VERSION);
+
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(MATERIAL_STORE_NAME)) {
+        db.createObjectStore(MATERIAL_STORE_NAME, { keyPath:'id' });
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('打开本地素材缓存失败'));
+    request.onblocked = () => reject(new Error('素材缓存数据库被其他页面占用，请关闭旧页面后重试'));
+  });
+
+  return materialState.dbPromise;
+}
+
+function materialExtension(file) {
+  const fromName = String(file?.name || '').match(/\.([a-zA-Z0-9]{1,8})$/);
+  if (fromName) return '.' + fromName[1].toLowerCase();
+
+  const type = String(file?.type || '').toLowerCase();
+  const map = {
+    'image/jpeg':'.jpg','image/png':'.png','image/webp':'.webp','image/gif':'.gif','image/avif':'.avif',
+    'video/mp4':'.mp4','video/webm':'.webm','video/quicktime':'.mov','video/x-m4v':'.m4v',
+    'audio/mpeg':'.mp3','audio/wav':'.wav','audio/x-wav':'.wav','audio/mp4':'.m4a','audio/aac':'.aac','audio/ogg':'.ogg','audio/webm':'.webm'
+  };
+  return map[type] || '';
+}
+
+function renamedMaterialFile(config, file) {
+  const ext = materialExtension(file);
+  return new File([file], config.baseName + ext, {
+    type:file.type || '',
+    lastModified:Date.now()
+  });
+}
+
+function fileFromMaterialRecord(record) {
+  if (!record?.blob) return null;
+  return new File([record.blob], record.fileName || record.baseName || '素材', {
+    type:record.type || record.blob.type || '',
+    lastModified:record.updatedAt || Date.now()
+  });
+}
+
+function formatMaterialBytes(bytes) {
+  const value = Number(bytes || 0);
+  if (value < 1024) return value + ' B';
+  if (value < 1024 * 1024) return (value / 1024).toFixed(value < 10 * 1024 ? 1 : 0) + ' KB';
+  return (value / (1024 * 1024)).toFixed(value < 10 * 1024 * 1024 ? 1 : 0) + ' MB';
+}
+
+function clearMaterialPreviewUrls() {
+  Object.values(materialState.objectUrls).forEach(url => {
+    try { URL.revokeObjectURL(url); } catch {}
+  });
+  materialState.objectUrls = {};
+}
+
+function updateMaterialLibraryBadges() {
+  const count = MATERIAL_LIBRARY.filter(config => !!materialState.records[config.id]).length;
+  const saved = $('#materialSavedCount');
+  const badge = $('#materialLibraryBadge');
+  if (saved) saved.textContent = String(count);
+  if (badge) badge.textContent = count + ' / ' + MATERIAL_LIBRARY.length;
+}
+
+function materialPreviewHtml(config, record) {
+  if (!record?.blob) {
+    const label = config.kind === 'image' ? 'IMG' : config.kind === 'video' ? 'VIDEO' : 'AUDIO';
+    return '<span class="material-kind-icon' + (config.kind === 'audio' ? ' audio' : '') + '">' +
+      (config.kind === 'audio' ? '♪' : label) + '</span>';
+  }
+
+  const url = URL.createObjectURL(record.blob);
+  materialState.objectUrls[config.id] = url;
+
+  if (config.kind === 'image') {
+    return '<img src="' + esc(url) + '" alt="' + esc(config.baseName) + '">';
+  }
+  if (config.kind === 'video') {
+    return '<video src="' + esc(url) + '" muted playsinline preload="metadata"></video>';
+  }
+  return '<span class="material-kind-icon audio">♪</span>';
+}
+
+function renderMaterialLibrary() {
+  const grid = $('#materialLibraryGrid');
+  if (!grid) return;
+
+  clearMaterialPreviewUrls();
+
+  grid.innerHTML = MATERIAL_LIBRARY.map(config => {
+    const record = materialState.records[config.id];
+    const kindLabel = config.kind === 'image' ? 'IMAGE' : config.kind === 'video' ? 'VIDEO' : 'AUDIO';
+    const meta = record
+      ? ((record.fileName || config.baseName) + ' · ' + formatMaterialBytes(record.size))
+      : '未设置 · 点击上传后自动保存';
+
+    return (
+      '<article class="material-card ' + (record ? 'has-file' : '') + '" data-material-card="' + esc(config.id) + '">' +
+        '<div class="material-card-preview">' + materialPreviewHtml(config, record) + '</div>' +
+        '<div class="material-card-body">' +
+          '<div class="material-card-copy">' +
+            '<strong>' + esc(config.baseName) + '</strong>' +
+            '<b>' + kindLabel + '</b>' +
+          '</div>' +
+          '<span class="material-card-meta">' + esc(meta) + '</span>' +
+          '<div class="material-card-actions">' +
+            '<button class="material-upload-btn" data-material-upload="' + esc(config.id) + '" type="button">' + (record ? '更换' : '上传') + '</button>' +
+            '<button class="material-delete-btn" data-material-delete="' + esc(config.id) + '" type="button" ' + (record ? '' : 'disabled') + '>删除</button>' +
+          '</div>' +
+          '<input data-material-input="' + esc(config.id) + '" type="file" accept="' + esc(config.accept) + '" hidden>' +
+        '</div>' +
+      '</article>'
+    );
+  }).join('');
+
+  $('[data-material-upload]').forEach(button => {
+    button.addEventListener('click', () => {
+      const id = button.dataset.materialUpload;
+      const input = $('[data-material-input="' + id + '"]');
+      input?.click();
+    });
+  });
+
+  $('[data-material-input]').forEach(input => {
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      await savePersistentMaterial(input.dataset.materialInput, file);
+      input.value = '';
+    });
+  });
+
+  $('[data-material-delete]').forEach(button => {
+    button.addEventListener('click', async () => {
+      if (button.disabled) return;
+      await deletePersistentMaterial(button.dataset.materialDelete);
+    });
+  });
+
+  updateMaterialLibraryBadges();
+}
+
+async function ensureMaterialLibrary() {
+  if (materialState.ready) return materialState.records;
+  if (materialState.loading) return materialState.loading;
+
+  materialState.loading = (async () => {
+    const db = await openMaterialDB();
+    const records = await new Promise((resolve, reject) => {
+      const tx = db.transaction(MATERIAL_STORE_NAME, 'readonly');
+      const request = tx.objectStore(MATERIAL_STORE_NAME).getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error || new Error('读取本地素材失败'));
+    });
+
+    materialState.records = {};
+    records.forEach(record => {
+      if (record?.id && MATERIAL_BY_ID[record.id]) materialState.records[record.id] = record;
+    });
+    materialState.ready = true;
+    updateMaterialLibraryBadges();
+    if ($('#materialSettingsOverlay') && !$('#materialSettingsOverlay').classList.contains('hidden')) {
+      renderMaterialLibrary();
+    }
+
+    try { navigator.storage?.persist?.(); } catch {}
+    return materialState.records;
+  })();
+
+  try {
+    return await materialState.loading;
+  } finally {
+    materialState.loading = null;
+  }
+}
+
+async function savePersistentMaterial(id, file) {
+  const config = MATERIAL_BY_ID[id];
+  if (!config || !file) return;
+
+  if (file.size > MAX_RH_UPLOAD_BYTES) {
+    toast('单个素材不能超过 30MB：' + file.name, 'bad');
+    return;
+  }
+
+  if (file.type && !file.type.startsWith(config.kind + '/')) {
+    toast('文件类型不匹配：' + config.baseName, 'bad');
+    return;
+  }
+
+  const renamed = renamedMaterialFile(config, file);
+  const record = {
+    id:config.id,
+    kind:config.kind,
+    baseName:config.baseName,
+    targetSlot:config.targetSlot,
+    fileName:renamed.name,
+    type:renamed.type,
+    size:renamed.size,
+    updatedAt:Date.now(),
+    blob:renamed
+  };
+
+  try {
+    const db = await openMaterialDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(MATERIAL_STORE_NAME, 'readwrite');
+      tx.objectStore(MATERIAL_STORE_NAME).put(record);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('素材保存失败'));
+      tx.onabort = () => reject(tx.error || new Error('素材保存被中止'));
+    });
+
+    materialState.records[id] = record;
+    materialState.ready = true;
+    renderMaterialLibrary();
+    toast(config.baseName + ' 已保存', 'good');
+  } catch (error) {
+    toast(error?.name === 'QuotaExceededError' ? '浏览器存储空间不足，素材未保存' : (error?.message || '素材保存失败'), 'bad');
+  }
+}
+
+async function deletePersistentMaterial(id) {
+  const config = MATERIAL_BY_ID[id];
+  if (!config) return;
+
+  try {
+    const db = await openMaterialDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(MATERIAL_STORE_NAME, 'readwrite');
+      tx.objectStore(MATERIAL_STORE_NAME).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('删除素材失败'));
+      tx.onabort = () => reject(tx.error || new Error('删除素材被中止'));
+    });
+
+    delete materialState.records[id];
+    materialState.ready = true;
+    renderMaterialLibrary();
+    toast(config.baseName + ' 已删除');
+  } catch (error) {
+    toast(error?.message || '删除素材失败', 'bad');
+  }
+}
+
+async function openMaterialSettings() {
+  closeDrawers();
+  $('#materialSettingsOverlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
+  try {
+    await ensureMaterialLibrary();
+    renderMaterialLibrary();
+  } catch (error) {
+    toast(error?.message || '无法读取本地素材', 'bad');
+  }
+}
+
+async function fillSavedMaterials() {
+  try {
+    await ensureMaterialLibrary();
+  } catch (error) {
+    toast(error?.message || '无法读取本地素材', 'bad');
+    return;
+  }
+
+  let count = 0;
+  for (const config of MATERIAL_LIBRARY) {
+    const record = materialState.records[config.id];
+    if (!record) continue;
+    const file = fileFromMaterialRecord(record);
+    if (!file) continue;
+    setFile(config.targetSlot, file);
+    count += 1;
+  }
+
+  if (!count) {
+    toast('还没有保存素材，请先在素材设置中上传', 'bad');
+    openMaterialSettings();
+    return;
+  }
+
+  toast('已填入 ' + count + ' 个保存素材', 'good');
+}
 
 function clearFile(slot, rerender=true) {
   if (state.objectUrls[slot]) {
@@ -2296,6 +2622,7 @@ loadConfig();
 updateKeyUI();
 Object.keys(MEDIA).forEach(renderFileSlot);
 Object.keys(MULTI_FAST_MEDIA).forEach(renderFileSlot);
+ensureMaterialLibrary().catch(() => updateMaterialLibraryBadges());
 renderVideoIdle();
 renderImageIdle();
 renderWhiteMarbleIdle();
