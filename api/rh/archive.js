@@ -270,8 +270,9 @@ export default {
                 push(bytes);
               }
             } catch (error) {
-              errors.push((item.taskId ? 'Task ' + item.taskId + ': ' : '') + (error?.message || '读取文件失败'));
-              throw error;
+              const message = error?.message || '读取文件失败';
+              if (/4GB/.test(message)) throw error;
+              errors.push((item.taskId ? 'Task ' + item.taskId + ': ' : '') + message + '（文件可能不完整）');
             }
 
             const finalCrc = (crc ^ 0xffffffff) >>> 0;
