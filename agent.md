@@ -515,14 +515,16 @@ Vercel 配置继续保留作为备用兼容，但不再作为默认生产部署�
 - 与 `minimax-h3` 使用完全独立的媒体 slot，禁止跨应用上传节点串用。
 
 
-## 16. 统一图片预览组件
-- 所有图片类应用统一使用 `.image-preview-shell > .image-preview-stage`，禁止为单个图片应用创建独立的结果预览尺寸规则。
-- 图片预览统一使用共享 design tokens：
-  - `--image-preview-radius`
-  - `--image-preview-border`
-  - `--image-preview-bg`
-  - `--image-preview-padding`
-- 单张结果统一使用 `img.generated-image`，必须完整显示原图比例，居中，`object-fit: contain`，禁止 crop、stretch 或按原始像素尺寸溢出容器。
+## 16. 统一媒体预览组件
+- 所有图片与视频应用统一使用 `.image-preview-shell > .image-preview-stage` 作为结果预览容器，禁止为单个应用创建独立的结果预览窗口尺寸规则。
+- 图片与视频预览统一使用共享 design tokens：
+  - `--media-preview-radius`
+  - `--media-preview-border`
+  - `--media-preview-bg`
+  - `--media-preview-padding`
+  - 旧 `--image-preview-*` 仅作为兼容别名，不再作为独立设计来源。
+- 单张图片结果统一使用 `img.generated-image`，必须完整显示原图比例，居中，`object-fit: contain`，禁止 crop、stretch 或按原始像素尺寸溢出容器。
+- 单张视频结果统一使用 `video.generated-video`，必须完整显示原视频比例，居中，`object-fit: contain`，禁止 crop、stretch 或放大裁切。
 - CSS 必须提供 `max-width:100%` / `max-height:100%` 兜底；JS 尺寸计算只能作为增强，不能成为图片正确显示的唯一条件。
 - 应用切换、窗口 resize 和预览容器 resize 时，都要重新执行图片 fit。
-- White Marble、KQ12、基础文生图、Skin Upscale 等图片应用必须遵循同一套预览组件规则。
+- White Marble、KQ12、基础文生图、Skin Upscale，以及两个 MinimaxH3 视频应用必须遵循同一套媒体预览组件规则。
