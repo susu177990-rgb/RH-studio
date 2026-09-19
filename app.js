@@ -583,6 +583,9 @@ function toMediaUrl(url) {
     if (parsed.hostname === 'rh-images-1252422369.cos.ap-beijing.myqcloud.com') {
       return '/rh-media' + parsed.pathname + parsed.search;
     }
+    if (parsed.hostname === 'rh-hk-images-1252422369.cos.ap-hongkong.myqcloud.com') {
+      return '/rh-media-hk' + parsed.pathname + parsed.search;
+    }
   } catch {}
   return url;
 }
