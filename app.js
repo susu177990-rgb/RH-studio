@@ -33,6 +33,14 @@ const APPS = {
     subtitle: 'Portrait Master',
     title: 'Krea2 turbo White_Marble-AIO（Portrait Master）',
     type: 'image'
+  },
+  'kq12-portrait': {
+    key: 'kq12-portrait',
+    appId: '2074694253623726082',
+    name: 'KQ12Z真实人像-超绝美感文生图',
+    subtitle: 'Prompt Only',
+    title: 'KQ12Z真实人像-超绝美感文生图',
+    type: 'image'
   }
 };
 
@@ -40,7 +48,8 @@ const APP_KEYS = {
   video: 'minimax-h3',
   image: 'image-2mp',
   imageUpscale: 'image-2mp-upscale',
-  whiteMarble: 'krea2-white-marble'
+  whiteMarble: 'krea2-white-marble',
+  kq12Portrait: 'kq12-portrait'
 };
 
 const RH_UPLOAD_DIRECT = 'https://www.runninghub.ai/openapi/v2/media/upload/binary';
@@ -61,6 +70,7 @@ const LS = {
   whiteMarbleWidth: 'rhstudio.whiteMarble.width',
   whiteMarbleHeight: 'rhstudio.whiteMarble.height',
   whiteMarbleSeed: 'rhstudio.whiteMarble.seed',
+  kq12Prompt: 'rhstudio.kq12.prompt',
   inst: 'rhstudio.instanceType',
   history: 'rhstudio.generationHistory'
 };
@@ -112,6 +122,15 @@ const imageUpscaleState = {
 };
 
 const whiteMarbleState = {
+  task: null,
+  poll: null,
+  running: false,
+  outputUrl: '',
+  outputSourceUrl: '',
+  outputType: ''
+};
+
+const kq12State = {
   task: null,
   poll: null,
   running: false,
@@ -174,6 +193,7 @@ function setActiveApp(key, persist=true) {
   $('#workspaceImage').classList.toggle('hidden', key !== APP_KEYS.image);
   $('#workspaceImageUpscale').classList.toggle('hidden', key !== APP_KEYS.imageUpscale);
   $('#workspaceWhiteMarble').classList.toggle('hidden', key !== APP_KEYS.whiteMarble);
+  $('#workspaceKQ12').classList.toggle('hidden', key !== APP_KEYS.kq12Portrait);
 
   const app = APPS[key];
   $('#currentAppTitle').textContent = app.title;
@@ -206,6 +226,10 @@ function persistWhiteMarbleConfig() {
   localStorage.setItem(LS.whiteMarbleSeed, $('#whiteMarbleSeed').value.trim());
 }
 
+function persistKQ12Config() {
+  localStorage.setItem(LS.kq12Prompt, $('#kq12PromptInput').value);
+}
+
 function loadConfig() {
   $('#promptInput').value = localStorage.getItem(LS.prompt) || '';
   $('#aspectRatio').value = localStorage.getItem(LS.aspect) || '9:16 (Portrait Widescreen)';
@@ -224,6 +248,7 @@ function loadConfig() {
   $('#whiteMarbleWidth').value = localStorage.getItem(LS.whiteMarbleWidth) || '1080';
   $('#whiteMarbleHeight').value = localStorage.getItem(LS.whiteMarbleHeight) || '1920';
   $('#whiteMarbleSeed').value = localStorage.getItem(LS.whiteMarbleSeed) || '527633149753192';
+  $('#kq12PromptInput').value = localStorage.getItem(LS.kq12Prompt) || '';
   $('#instanceType').value = localStorage.getItem(LS.inst) || 'default';
 
   updateDurationUI();
@@ -231,6 +256,7 @@ function loadConfig() {
   updateImagePromptCount();
   updateImageUpscalePromptCount();
   updateWhiteMarblePromptCount();
+  updateKQ12PromptCount();
 }
 
 function updateDurationUI() {
@@ -264,6 +290,10 @@ function updateImageUpscalePromptCount() {
 
 function updateWhiteMarblePromptCount() {
   $('#whiteMarblePromptCount').textContent = String($('#whiteMarblePromptInput').value.length);
+}
+
+function updateKQ12PromptCount() {
+  $('#kq12PromptCount').textContent = String($('#kq12PromptInput').value.length);
 }
 
 function aspectLabelFromDimensions(width, height) {
@@ -310,6 +340,12 @@ function aspectLabelFromDimensions(width, height) {
   });
   el.addEventListener('change', persistWhiteMarbleConfig);
 });
+
+$('#kq12PromptInput').addEventListener('input', () => {
+  persistKQ12Config();
+  updateKQ12PromptCount();
+});
+$('#kq12PromptInput').addEventListener('change', persistKQ12Config);
 
 $('#instanceType').addEventListener('change', () => {
   localStorage.setItem(LS.inst, $('#instanceType').value);
