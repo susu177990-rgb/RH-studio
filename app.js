@@ -8,7 +8,8 @@ const LS = {
   app: 'rhstudio.appId',
   prompt: 'rhstudio.prompt',
   aspect: 'rhstudio.aspectRatio',
-  quality: 'rhstudio.qualityPreset'
+  quality: 'rhstudio.qualityPreset',
+  duration: 'rhstudio.duration'
 };
 
 const MEDIA = {
@@ -73,6 +74,7 @@ function persist() {
   localStorage.setItem(LS.prompt, $('#promptInput').value);
   localStorage.setItem(LS.aspect, $('#aspectRatio').value);
   localStorage.setItem(LS.quality, $('#qualityPreset').value);
+  localStorage.setItem(LS.duration, $('#durationRange').value);
 }
 
 function loadConfig() {
@@ -80,22 +82,33 @@ function loadConfig() {
   $('#promptInput').value = localStorage.getItem(LS.prompt) || '';
   $('#aspectRatio').value = localStorage.getItem(LS.aspect) || '9:16 (Portrait Widescreen)';
   $('#qualityPreset').value = localStorage.getItem(LS.quality) || '0.9';
+  $('#durationRange').value = localStorage.getItem(LS.duration) || '10';
+  updateDurationUI();
   updatePromptCount();
   updateRatioChip();
 }
 
-['appId','promptInput','aspectRatio','qualityPreset'].forEach(id => {
+['appId','promptInput','aspectRatio','qualityPreset','durationRange'].forEach(id => {
   const el = $('#' + id);
   el.addEventListener('input', () => {
     persist();
     if (id === 'promptInput') updatePromptCount();
     if (id === 'aspectRatio') updateRatioChip();
+    if (id === 'durationRange') updateDurationUI();
   });
   el.addEventListener('change', () => {
     persist();
     if (id === 'aspectRatio') updateRatioChip();
   });
 });
+
+function updateDurationUI() {
+  const range = $('#durationRange');
+  const value = Number(range.value || 10);
+  $('#durationValue').textContent = value + 's';
+  const pct = ((value - Number(range.min)) / (Number(range.max) - Number(range.min))) * 100;
+  range.style.background = 'linear-gradient(90deg,var(--accent) ' + pct + '%,rgba(255,255,255,.08) ' + pct + '%)';
+}
 
 function updatePromptCount() {
   $('#promptCount').textContent = String($('#promptInput').value.length);
@@ -343,7 +356,7 @@ function getFixedNodeInfo() {
     {nodeId:'171',fieldName:'value',fieldValue:'false',description:null},
     {nodeId:'163',fieldName:'value',fieldValue:'false',description:null},
     {nodeId:'185',fieldName:'value',fieldValue:'false',description:null},
-    {nodeId:'186',fieldName:'value',fieldValue:'10',description:null},
+    {nodeId:'186',fieldName:'value',fieldValue:String($('#durationRange').value || '10'),description:null},
     {nodeId:'147',fieldName:'value',fieldValue:String($('#qualityPreset').value || '0.9'),description:null},
     {nodeId:'192',fieldName:'value',fieldValue:'8',description:null},
     {nodeId:'159',fieldName:'lora_name',fieldValue:'MysticXXX_MMH3-V1.safetensors',description:null},
@@ -549,7 +562,7 @@ $('#clearKey').onclick = () => {
 };
 
 $('#clearLocal').onclick = () => {
-  [LS.app,LS.prompt,LS.aspect,LS.quality].forEach(k => localStorage.removeItem(k));
+  [LS.app,LS.prompt,LS.aspect,LS.quality,LS.duration].forEach(k => localStorage.removeItem(k));
   Object.keys(state.files).forEach(slot => clearFile(slot));
   loadConfig();
   renderIdle();
