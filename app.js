@@ -550,9 +550,30 @@ function saveRuntimeTask(appKey, task, extra={}) {
   } catch {}
 }
 
+function clearRuntimeTask(appKey) {
+  const all = getRuntimeTasks();
+  if (!Object.prototype.hasOwnProperty.call(all, appKey)) return;
+  delete all[appKey];
+  try {
+    localStorage.setItem(LS.runtimeTasks, JSON.stringify(all));
+  } catch {}
+}
+
+function markRuntimeTaskFailed(appKey, taskId, message='任务查询失败') {
+  saveRuntimeTask(appKey, {
+    taskId,
+    status:'FAILED',
+    results:[],
+    errorMessage:String(message || '任务查询失败')
+  });
+}
+
 function runtimeSnapshotFromHistory(appKey) {
   const item = getHistory().find(entry => entry?.appKey === appKey && entry?.taskId);
   if (!item) return null;
+
+  const status = String(item.status || '').toUpperCase();
+  if (!['SUCCESS','FAILED'].includes(status)) return null;
 
   const result = item.resultUrl
     ? [{url:item.resultUrl, outputType:item.outputType || '', text:''}]
@@ -560,7 +581,7 @@ function runtimeSnapshotFromHistory(appKey) {
 
   return {
     taskId:String(item.taskId || ''),
-    status:String(item.status || 'RUNNING'),
+    status,
     results:result,
     errorCode:String(item.errorCode || ''),
     errorMessage:String(item.errorMessage || ''),
@@ -1294,6 +1315,19 @@ async function runRHApp(appId, nodeInfoList) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || ('提交失败 (' + res.status + ')'));
+
+  const taskId = String(data?.taskId || '').trim();
+  if (!taskId) {
+    throw new Error(
+      data?.errorMessage ||
+      data?.message ||
+      data?.msg ||
+      'RunningHub 未返回 taskId，任务未创建'
+    );
+  }
+
+  data.taskId = taskId;
+  if (data.status) data.status = String(data.status).toUpperCase();
   return data;
 }
 
@@ -1309,6 +1343,18 @@ async function queryRH(taskId) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || ('查询失败 (' + res.status + ')'));
+
+  const status = String(data?.status || '').trim().toUpperCase();
+  if (!status) {
+    throw new Error(
+      data?.errorMessage ||
+      data?.message ||
+      data?.msg ||
+      'RunningHub 查询响应缺少 status'
+    );
+  }
+
+  data.status = status;
   return data;
 }
 
@@ -1606,6 +1652,8 @@ async function runVideoTask() {
     return;
   }
 
+  videoState.task = null;
+  clearRuntimeTask(APP_KEYS.video);
   videoState.running = true;
   $('#runBtn').disabled = true;
   $('.generate-label').textContent = '准备任务…';
@@ -1680,7 +1728,7 @@ async function queryVideoTask(taskId) {
   try {
     const data = await queryRH(taskId);
     videoState.task = data;
-    const status = data.status || 'RUNNING';
+    const status = data.status;
 
     upsertHistory(APP_KEYS.video, data, {taskId});
 
@@ -1700,6 +1748,7 @@ async function queryVideoTask(taskId) {
   } catch (error) {
     clearInterval(videoState.poll);
     videoState.poll = null;
+    markRuntimeTaskFailed(APP_KEYS.video, taskId, error?.message || '任务查询失败');
     renderVideoFailed(videoState.task, error?.message || '任务查询失败');
     toast(error?.message || '任务查询失败','bad');
   }
@@ -1815,6 +1864,8 @@ async function runImageTask() {
     return;
   }
 
+  imageState.task = null;
+  clearRuntimeTask(APP_KEYS.image);
   imageState.running = true;
   $('#imageRunBtn').disabled = true;
   $('.image-generate-label').textContent = '提交任务…';
@@ -1861,7 +1912,7 @@ async function queryImageTask(taskId) {
   try {
     const data = await queryRH(taskId);
     imageState.task = data;
-    const status = data.status || 'RUNNING';
+    const status = data.status;
 
     upsertHistory(APP_KEYS.image, data, {taskId});
 
@@ -1881,6 +1932,7 @@ async function queryImageTask(taskId) {
   } catch (error) {
     clearInterval(imageState.poll);
     imageState.poll = null;
+    markRuntimeTaskFailed(APP_KEYS.image, taskId, error?.message || '任务查询失败');
     renderImageFailed(imageState.task, error?.message || '任务查询失败');
     toast(error?.message || '任务查询失败','bad');
   }
@@ -2013,6 +2065,8 @@ async function runWhiteMarbleTask() {
     return;
   }
 
+  whiteMarbleState.task = null;
+  clearRuntimeTask(APP_KEYS.whiteMarble);
   whiteMarbleState.running = true;
   $('#whiteMarbleRunBtn').disabled = true;
   $('.white-marble-generate-label').textContent = '提交任务…';
@@ -2062,7 +2116,7 @@ async function queryWhiteMarbleTask(taskId) {
   try {
     const data = await queryRH(taskId);
     whiteMarbleState.task = data;
-    const status = data.status || 'RUNNING';
+    const status = data.status;
 
     upsertHistory(APP_KEYS.whiteMarble, data, {taskId});
 
@@ -2082,6 +2136,7 @@ async function queryWhiteMarbleTask(taskId) {
   } catch (error) {
     clearInterval(whiteMarbleState.poll);
     whiteMarbleState.poll = null;
+    markRuntimeTaskFailed(APP_KEYS.whiteMarble, taskId, error?.message || '任务查询失败');
     renderWhiteMarbleFailed(whiteMarbleState.task, error?.message || '任务查询失败');
     toast(error?.message || '任务查询失败','bad');
   }
@@ -2191,6 +2246,8 @@ async function runKQ12Task() {
     return;
   }
 
+  kq12State.task = null;
+  clearRuntimeTask(APP_KEYS.kq12Portrait);
   kq12State.running = true;
   $('#kq12RunBtn').disabled = true;
   $('.kq12-generate-label').textContent = '提交任务…';
@@ -2237,7 +2294,7 @@ async function queryKQ12Task(taskId) {
   try {
     const data = await queryRH(taskId);
     kq12State.task = data;
-    const status = data.status || 'RUNNING';
+    const status = data.status;
 
     upsertHistory(APP_KEYS.kq12Portrait, data, {taskId});
 
@@ -2257,6 +2314,7 @@ async function queryKQ12Task(taskId) {
   } catch (error) {
     clearInterval(kq12State.poll);
     kq12State.poll = null;
+    markRuntimeTaskFailed(APP_KEYS.kq12Portrait, taskId, error?.message || '任务查询失败');
     renderKQ12Failed(kq12State.task, error?.message || '任务查询失败');
     toast(error?.message || '任务查询失败','bad');
   }
@@ -2370,6 +2428,8 @@ async function runSkinUpscaleTask() {
     return;
   }
 
+  skinUpscaleState.task = null;
+  clearRuntimeTask(APP_KEYS.skinUpscale);
   skinUpscaleState.running = true;
   $('#skinUpscaleRunBtn').disabled = true;
   $('.skin-upscale-generate-label').textContent = '上传原图…';
@@ -2424,7 +2484,7 @@ async function querySkinUpscaleTask(taskId) {
   try {
     const data = await queryRH(taskId);
     skinUpscaleState.task = data;
-    const status = data.status || 'RUNNING';
+    const status = data.status;
 
     upsertHistory(APP_KEYS.skinUpscale, data, {taskId});
 
@@ -2444,6 +2504,7 @@ async function querySkinUpscaleTask(taskId) {
   } catch (error) {
     clearInterval(skinUpscaleState.poll);
     skinUpscaleState.poll = null;
+    markRuntimeTaskFailed(APP_KEYS.skinUpscale, taskId, error?.message || '任务查询失败');
     renderSkinUpscaleFailed(skinUpscaleState.task, error?.message || '任务查询失败');
     toast(error?.message || '任务查询失败','bad');
   }
@@ -2565,6 +2626,8 @@ async function runMultiFastTask() {
     return;
   }
 
+  multiFastState.task = null;
+  clearRuntimeTask(APP_KEYS.multiFast);
   multiFastState.running = true;
   $('#multiFastRunBtn').disabled = true;
   $('.multi-fast-generate-label').textContent = '准备任务…';
@@ -2640,7 +2703,7 @@ async function queryMultiFastTask(taskId) {
   try {
     const data = await queryRH(taskId);
     multiFastState.task = data;
-    const status = data.status || 'RUNNING';
+    const status = data.status;
 
     upsertHistory(APP_KEYS.multiFast, data, {taskId});
 
@@ -2660,6 +2723,7 @@ async function queryMultiFastTask(taskId) {
   } catch (error) {
     clearInterval(multiFastState.poll);
     multiFastState.poll = null;
+    markRuntimeTaskFailed(APP_KEYS.multiFast, taskId, error?.message || '任务查询失败');
     renderMultiFastFailed(multiFastState.task, error?.message || '任务查询失败');
     toast(error?.message || '任务查询失败','bad');
   }
@@ -2748,7 +2812,8 @@ $('#clearLocal').onclick = () => {
     LS.multiFastPrompt,
     LS.multiFastAspect,
     LS.appFilter,
-    LS.inst
+    LS.inst,
+    LS.runtimeTasks
   ].forEach(k => localStorage.removeItem(k));
 
   Object.keys(state.files).forEach(slot => clearFile(slot));
