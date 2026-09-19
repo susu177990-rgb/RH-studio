@@ -545,6 +545,36 @@ function toMediaUrl(url) {
   return url;
 }
 
+function generatedImageTag(url, className='') {
+  const direct = String(url || '');
+  const proxy = toMediaUrl(direct);
+  const fallback = proxy && proxy !== direct ? proxy : '';
+
+  return '<img src="' + esc(direct) + '"' +
+    (fallback ? ' data-fallback-src="' + esc(fallback) + '"' : '') +
+    ' referrerpolicy="no-referrer"' +
+    (className ? ' class="' + esc(className) + '"' : '') +
+    ' alt="generated image">';
+}
+
+function bindGeneratedImageFallbacks(root) {
+  if (!root) return;
+
+  root.querySelectorAll('img[data-fallback-src]').forEach(img => {
+    img.addEventListener('error', () => {
+      if (!img.dataset.fallbackTried && img.dataset.fallbackSrc) {
+        img.dataset.fallbackTried = '1';
+        img.src = img.dataset.fallbackSrc;
+        return;
+      }
+
+      img.closest('.image-result-grid')?.classList.add('has-load-error');
+      img.closest('.image-output-stage')?.classList.add('has-load-error');
+      toast('图片已生成，但预览加载失败', 'bad');
+    });
+  });
+}
+
 function parseMaybeJson(value) {
   if (value == null || value === '') return null;
   if (typeof value !== 'string') return value;
@@ -919,10 +949,12 @@ function renderImageSuccess(task) {
   if (images.length > 1) {
     $('#imageResultArea').innerHTML =
       '<div class="image-result-grid">' +
-        images.map(item => '<img src="' + esc(toMediaUrl(item.url || '')) + '" alt="generated image">').join('') +
+        images.map(item => generatedImageTag(item.url || '')).join('') +
       '</div>';
+    bindGeneratedImageFallbacks($('#imageResultArea'));
   } else if (url) {
-    $('#imageResultArea').innerHTML = '<img src="' + esc(toMediaUrl(url)) + '" alt="generated image">';
+    $('#imageResultArea').innerHTML = generatedImageTag(url);
+    bindGeneratedImageFallbacks($('#imageResultArea'));
   } else if (primary.text) {
     $('#imageResultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
   }
