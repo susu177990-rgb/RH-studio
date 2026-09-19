@@ -280,6 +280,11 @@ function setActiveApp(key, persist=true) {
   $('#currentAppTitle').textContent = app.title;
   $('#settingsCurrentApp').textContent = app.title;
 
+  requestAnimationFrame(() => {
+    const activeWorkspace = $('.app-workspace:not(.hidden)');
+    activeWorkspace?.querySelectorAll('.image-preview-stage > img.generated-image').forEach(fitGeneratedImageToStage);
+  });
+
   if (persist) localStorage.setItem(LS.active, key);
 }
 
@@ -1050,9 +1055,20 @@ function bindGeneratedImageFallbacks(root) {
   });
 }
 
-window.addEventListener('resize', () => {
+function refitAllGeneratedImagePreviews() {
   $('.image-preview-stage > img.generated-image').forEach(fitGeneratedImageToStage);
-});
+}
+
+window.addEventListener('resize', refitAllGeneratedImagePreviews);
+
+if ('ResizeObserver' in window) {
+  const imagePreviewResizeObserver = new ResizeObserver(entries => {
+    entries.forEach(entry => {
+      entry.target.querySelectorAll('img.generated-image').forEach(fitGeneratedImageToStage);
+    });
+  });
+  $('.image-preview-stage').forEach(stage => imagePreviewResizeObserver.observe(stage));
+}
 
 function parseMaybeJson(value) {
   if (value == null || value === '') return null;
