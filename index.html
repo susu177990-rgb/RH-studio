@@ -192,8 +192,21 @@
 .auto-generation-track{height:5px;margin-top:10px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden}
 .auto-generation-track i{display:block;width:0;height:100%;background:var(--accent);border-radius:999px;transition:width .2s ease}
 .auto-generation-progress small{display:block;margin-top:8px;color:#625a52;font-size:7px;line-height:1.5}
-.auto-generation-actions{display:grid;grid-template-columns:1fr auto;gap:9px;margin-top:14px}
+.auto-generation-actions{
+  display:grid;grid-template-columns:minmax(0,1fr) 152px 94px;gap:9px;margin-top:14px
+}
 .auto-generation-actions .generate-btn{height:44px}
+.auto-batch-download-btn{
+  height:44px;border:1px solid rgba(255,179,92,.22);border-radius:14px;
+  background:rgba(255,179,92,.045);color:#cda676;padding:0 11px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  cursor:pointer;font-size:8px;font-weight:720;transition:.17s
+}
+.auto-batch-download-btn b{color:var(--accent);font-size:12px}
+.auto-batch-download-btn:hover:not(:disabled){
+  border-color:rgba(255,179,92,.34);background:rgba(255,179,92,.085);transform:translateY(-1px)
+}
+.auto-batch-download-btn:disabled{opacity:.28;cursor:not-allowed;transform:none}
 .auto-stop-btn{
   min-width:94px;height:44px;border:1px solid var(--line2);border-radius:14px;
   background:rgba(255,255,255,.025);color:#9d9288;cursor:pointer;font-size:8px
@@ -203,7 +216,7 @@
   .auto-generation-grid{grid-template-columns:1fr}
   .auto-generation-drawer{right:8px;top:8px;bottom:8px;width:calc(100vw - 16px)}
   .auto-generation-actions{grid-template-columns:1fr}
-  .auto-stop-btn{width:100%}
+  .auto-batch-download-btn,.auto-stop-btn{width:100%}
 }
 
 @media(max-width:620px){
@@ -1117,6 +1130,9 @@
         <button id="startAutoGenerate" class="generate-btn" type="button">
           <span>开始自动生成</span><b>↗</b>
         </button>
+        <button id="downloadCurrentBatch" class="auto-batch-download-btn" type="button" disabled>
+          <span>本次打包下载</span><b>↓</b>
+        </button>
         <button id="stopAutoGenerate" class="auto-stop-btn" type="button" disabled>停止新增</button>
       </div>
     </section>
@@ -1231,7 +1247,7 @@
 </div>
 
 <div id="toast" class="toast"></div>
-<script src="./app.js?v=auto-batch-local-2"></script>
+<script src="./app.js?v=current-batch-download-1"></script>
 
 <script id="prompt-settings-feature-script">
 (() => {
