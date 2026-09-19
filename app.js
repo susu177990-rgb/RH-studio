@@ -8,18 +8,7 @@ const LS = {
   app: 'rhstudio.appId',
   prompt: 'rhstudio.prompt',
   aspect: 'rhstudio.aspectRatio',
-  inst: 'rhstudio.instanceType',
-  queue: 'rhstudio.personalQueue',
-  p186: 'rhstudio.param186',
-  p147: 'rhstudio.param147',
-  p192: 'rhstudio.param192',
-  loraName: 'rhstudio.loraName',
-  loraStrength: 'rhstudio.loraStrength',
-  b171: 'rhstudio.bool171',
-  b163: 'rhstudio.bool163',
-  b185: 'rhstudio.bool185',
-  b169: 'rhstudio.bool169',
-  b158: 'rhstudio.bool158'
+  quality: 'rhstudio.qualityPreset'
 };
 
 const MEDIA = {
@@ -79,61 +68,23 @@ function updateKeyUI() {
   $('#settingsBadge').style.color = ok ? 'var(--good)' : 'var(--accent)';
 }
 
-function setStoredInput(id, key, fallback) {
-  const el = $('#' + id);
-  const value = localStorage.getItem(key);
-  el.value = value ?? fallback;
-}
-
-function setStoredCheck(id, key, fallback=false) {
-  const el = $('#' + id);
-  const value = localStorage.getItem(key);
-  el.checked = value == null ? fallback : value === 'true';
-}
-
 function persist() {
   localStorage.setItem(LS.app, $('#appId').value.trim() || APP_ID);
   localStorage.setItem(LS.prompt, $('#promptInput').value);
   localStorage.setItem(LS.aspect, $('#aspectRatio').value);
-  localStorage.setItem(LS.inst, $('#instanceType').value);
-  localStorage.setItem(LS.queue, $('#personalQueue').value);
-  localStorage.setItem(LS.p186, $('#param186').value);
-  localStorage.setItem(LS.p147, $('#param147').value);
-  localStorage.setItem(LS.p192, $('#param192').value);
-  localStorage.setItem(LS.loraName, $('#loraName').value);
-  localStorage.setItem(LS.loraStrength, $('#loraStrength').value);
-  localStorage.setItem(LS.b171, String($('#bool171').checked));
-  localStorage.setItem(LS.b163, String($('#bool163').checked));
-  localStorage.setItem(LS.b185, String($('#bool185').checked));
-  localStorage.setItem(LS.b169, String($('#bool169').checked));
-  localStorage.setItem(LS.b158, String($('#bool158').checked));
+  localStorage.setItem(LS.quality, $('#qualityPreset').value);
 }
 
 function loadConfig() {
-  setStoredInput('appId', LS.app, APP_ID);
-  setStoredInput('promptInput', LS.prompt, '');
-  setStoredInput('aspectRatio', LS.aspect, '9:16 (Portrait Widescreen)');
-  setStoredInput('instanceType', LS.inst, 'default');
-  setStoredInput('personalQueue', LS.queue, 'false');
-  setStoredInput('param186', LS.p186, '10');
-  setStoredInput('param147', LS.p147, '0.4');
-  setStoredInput('param192', LS.p192, '8');
-  setStoredInput('loraName', LS.loraName, 'MysticXXX_MMH3-V1.safetensors');
-  setStoredInput('loraStrength', LS.loraStrength, '0.4');
-  setStoredCheck('bool171', LS.b171, false);
-  setStoredCheck('bool163', LS.b163, false);
-  setStoredCheck('bool185', LS.b185, false);
-  setStoredCheck('bool169', LS.b169, false);
-  setStoredCheck('bool158', LS.b158, false);
+  $('#appId').value = localStorage.getItem(LS.app) || APP_ID;
+  $('#promptInput').value = localStorage.getItem(LS.prompt) || '';
+  $('#aspectRatio').value = localStorage.getItem(LS.aspect) || '9:16 (Portrait Widescreen)';
+  $('#qualityPreset').value = localStorage.getItem(LS.quality) || '0.9';
   updatePromptCount();
   updateRatioChip();
 }
 
-[
-  'appId','promptInput','aspectRatio','instanceType','personalQueue',
-  'param186','param147','param192','loraName','loraStrength',
-  'bool171','bool163','bool185','bool169','bool158'
-].forEach(id => {
+['appId','promptInput','aspectRatio','qualityPreset'].forEach(id => {
   const el = $('#' + id);
   el.addEventListener('input', () => {
     persist();
@@ -155,25 +106,21 @@ function updateRatioChip() {
   $('#ratioChip').textContent = value.split(' ')[0] || '9:16';
 }
 
-function openOverlay(selector) {
-  $$('.drawer-overlay').forEach(el => el.classList.add('hidden'));
-  $(selector).classList.remove('hidden');
+function openSettings() {
+  $('#apiKeyInput').value = '';
+  $('#settingsOverlay').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 }
 
-function closeOverlays() {
-  $$('.drawer-overlay').forEach(el => el.classList.add('hidden'));
+function closeSettings() {
+  $('#settingsOverlay').classList.add('hidden');
   document.body.style.overflow = '';
 }
 
-$('#openSettings').onclick = () => {
-  $('#apiKeyInput').value = '';
-  openOverlay('#settingsOverlay');
-};
-$('#openAdvanced').onclick = () => openOverlay('#advancedOverlay');
-$$('[data-close],[data-close-advanced]').forEach(el => el.onclick = closeOverlays);
+$('#openSettings').onclick = openSettings;
+$$('[data-close]').forEach(el => el.onclick = closeSettings);
 window.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeOverlays();
+  if (e.key === 'Escape') closeSettings();
 });
 
 function clearFile(slot, rerender=true) {
@@ -202,8 +149,7 @@ function renderFileSlot(slot) {
   if (!el) return;
 
   el.classList.toggle('has-file', !!file);
-  const clear = el.querySelector('.slot-clear');
-  clear?.classList.toggle('hidden', !file);
+  el.querySelector('.slot-clear')?.classList.toggle('hidden', !file);
 
   if (config.kind === 'image') {
     const preview = el.querySelector('.media-preview');
@@ -392,18 +338,18 @@ function renderFailed(task, message) {
     '</div>';
 }
 
-function getAdvancedNodeInfo() {
+function getFixedNodeInfo() {
   return [
-    {nodeId:'171',fieldName:'value',fieldValue:String($('#bool171').checked),description:null},
-    {nodeId:'163',fieldName:'value',fieldValue:String($('#bool163').checked),description:null},
-    {nodeId:'185',fieldName:'value',fieldValue:String($('#bool185').checked),description:null},
-    {nodeId:'186',fieldName:'value',fieldValue:String($('#param186').value || '10'),description:null},
-    {nodeId:'147',fieldName:'value',fieldValue:String($('#param147').value || '0.4'),description:null},
-    {nodeId:'192',fieldName:'value',fieldValue:String($('#param192').value || '8'),description:null},
-    {nodeId:'159',fieldName:'lora_name',fieldValue:String($('#loraName').value || 'MysticXXX_MMH3-V1.safetensors'),description:null},
-    {nodeId:'159',fieldName:'strength_model',fieldValue:String($('#loraStrength').value || '0.4'),description:null},
-    {nodeId:'169',fieldName:'value',fieldValue:String($('#bool169').checked),description:null},
-    {nodeId:'158',fieldName:'value',fieldValue:String($('#bool158').checked),description:null}
+    {nodeId:'171',fieldName:'value',fieldValue:'false',description:null},
+    {nodeId:'163',fieldName:'value',fieldValue:'false',description:null},
+    {nodeId:'185',fieldName:'value',fieldValue:'false',description:null},
+    {nodeId:'186',fieldName:'value',fieldValue:'10',description:null},
+    {nodeId:'147',fieldName:'value',fieldValue:String($('#qualityPreset').value || '0.9'),description:null},
+    {nodeId:'192',fieldName:'value',fieldValue:'8',description:null},
+    {nodeId:'159',fieldName:'lora_name',fieldValue:'MysticXXX_MMH3-V1.safetensors',description:null},
+    {nodeId:'159',fieldName:'strength_model',fieldValue:'0.4',description:null},
+    {nodeId:'169',fieldName:'value',fieldValue:'false',description:null},
+    {nodeId:'158',fieldName:'value',fieldValue:'false',description:null}
   ];
 }
 
@@ -413,7 +359,7 @@ async function runTask() {
   const key = apiKey();
   if (!key) {
     toast('请先在设置中保存 RunningHub API Key','bad');
-    openOverlay('#settingsOverlay');
+    openSettings();
     return;
   }
 
@@ -446,7 +392,7 @@ async function runTask() {
     const nodeInfoList = [
       {nodeId:'150',fieldName:'value',fieldValue:prompt,description:null},
       {nodeId:'115',fieldName:'aspect_ratio',fieldValue:$('#aspectRatio').value,description:null},
-      ...getAdvancedNodeInfo()
+      ...getFixedNodeInfo()
     ];
 
     for (const [slot, config] of Object.entries(MEDIA)) {
@@ -470,8 +416,8 @@ async function runTask() {
       body:JSON.stringify({
         appId,
         nodeInfoList,
-        instanceType:$('#instanceType').value,
-        usePersonalQueue:$('#personalQueue').value
+        instanceType:'default',
+        usePersonalQueue:'false'
       })
     });
 
@@ -603,7 +549,7 @@ $('#clearKey').onclick = () => {
 };
 
 $('#clearLocal').onclick = () => {
-  Object.values(LS).filter(k => k !== LS.key).forEach(k => localStorage.removeItem(k));
+  [LS.app,LS.prompt,LS.aspect,LS.quality].forEach(k => localStorage.removeItem(k));
   Object.keys(state.files).forEach(slot => clearFile(slot));
   loadConfig();
   renderIdle();
