@@ -651,41 +651,6 @@ select,.input{width:100%;height:38px;border:1px solid var(--line);border-radius:
 }
 
 
-/* Third image app: 2MP + 1.5x */
-#workspaceImageUpscale .image-control-panel{
-  grid-template-columns:minmax(190px,1fr) 175px 120px 110px 150px 210px;
-}
-@media(max-width:1280px){
-  #workspaceImageUpscale .image-control-panel{
-    grid-template-columns:minmax(160px,1fr) 150px 105px 95px 125px 180px;
-  }
-}
-@media(max-width:980px){
-  #workspaceImageUpscale .image-control-panel{
-    grid-template-columns:1fr 1fr;
-  }
-  #workspaceImageUpscale .image-control-copy{
-    grid-column:1/-1;
-  }
-  #workspaceImageUpscale .image-workflow-state{
-    grid-column:1/2;
-  }
-  #workspaceImageUpscale .image-generate-btn{
-    grid-column:2/3;
-  }
-}
-@media(max-width:620px){
-  #workspaceImageUpscale .image-control-panel{
-    grid-template-columns:1fr;
-  }
-  #workspaceImageUpscale .image-control-copy,
-  #workspaceImageUpscale .image-workflow-state,
-  #workspaceImageUpscale .image-generate-btn{
-    grid-column:1;
-  }
-}
-
-
 /* White Marble Portrait Master */
 .white-marble-control-panel{
   grid-template-columns:minmax(220px,1fr) 118px 118px 190px 135px 220px;
