@@ -34,14 +34,6 @@ const APPS = {
     title: 'KQ12Z真实人像-超绝美感文生图',
     type: 'image'
   },
-  'face-t2i-v3': {
-    key: 'face-t2i-v3',
-    appId: '2081918043782344705',
-    name: '指定人脸文生图V3 -(Qwen/Krea2)双版本',
-    subtitle: 'Face Guided',
-    title: '指定人脸文生图V3 -(Qwen/Krea2)双版本',
-    type: 'image'
-  },
   'skin-upscale': {
     key: 'skin-upscale',
     appId: '2050826078431793153',
@@ -65,7 +57,6 @@ const APP_KEYS = {
   image: 'image-2mp',
   whiteMarble: 'krea2-white-marble',
   kq12Portrait: 'kq12-portrait',
-  faceT2I: 'face-t2i-v3',
   skinUpscale: 'skin-upscale',
   multiFast: 'minimax-h3-multi-fast'
 };
@@ -87,10 +78,6 @@ const LS = {
   whiteMarbleHeight: 'rhstudio.whiteMarble.height',
   whiteMarbleSeed: 'rhstudio.whiteMarble.seed',
   kq12Prompt: 'rhstudio.kq12.prompt',
-  faceT2IPrompt: 'rhstudio.faceT2I.prompt',
-  faceT2IModelBranch: 'rhstudio.faceT2I.modelBranch',
-  faceT2IAspect: 'rhstudio.faceT2I.aspect',
-  faceT2IHD: 'rhstudio.faceT2I.hd',
   multiFastPrompt: 'rhstudio.multiFast.prompt',
   multiFastAspect: 'rhstudio.multiFast.aspect',
   appFilter: 'rhstudio.appFilter',
@@ -164,17 +151,6 @@ const kq12State = {
   outputUrl: '',
   outputSourceUrl: '',
   outputType: ''
-};
-
-const faceT2IState = {
-  task: null,
-  poll: null,
-  running: false,
-  outputUrl: '',
-  outputSourceUrl: '',
-  outputType: '',
-  faceFile: null,
-  faceObjectUrl: ''
 };
 
 const skinUpscaleState = {
@@ -251,7 +227,6 @@ function setActiveApp(key, persist=true) {
   $('#workspaceImage').classList.toggle('hidden', key !== APP_KEYS.image);
   $('#workspaceWhiteMarble').classList.toggle('hidden', key !== APP_KEYS.whiteMarble);
   $('#workspaceKQ12').classList.toggle('hidden', key !== APP_KEYS.kq12Portrait);
-  $('#workspaceFaceT2I').classList.toggle('hidden', key !== APP_KEYS.faceT2I);
   $('#workspaceSkinUpscale').classList.toggle('hidden', key !== APP_KEYS.skinUpscale);
   $('#workspaceMultiFast').classList.toggle('hidden', key !== APP_KEYS.multiFast);
 
@@ -345,22 +320,19 @@ function persistKQ12Config() {
   localStorage.setItem(LS.kq12Prompt, $('#kq12PromptInput').value);
 }
 
-function persistFaceT2IConfig() {
-  localStorage.setItem(LS.faceT2IPrompt, $('#faceT2IPromptInput').value);
-  localStorage.setItem(LS.faceT2IModelBranch, $('#faceT2IModelBranch').value);
-  localStorage.setItem(LS.faceT2IAspect, $('#faceT2IAspectRatio').value);
-  localStorage.setItem(LS.faceT2IHD, $('#faceT2IHD').value);
-}
-
 function persistMultiFastConfig() {
   localStorage.setItem(LS.multiFastPrompt, $('#multiFastPromptInput').value);
   localStorage.setItem(LS.multiFastAspect, $('#multiFastAspectRatio').value);
 }
 
 function loadConfig() {
-  // One-time cleanup for removed Claire app settings.
+  // One-time cleanup for removed app settings.
   localStorage.removeItem('rhstudio.image2mpUpscale.prompt');
   localStorage.removeItem('rhstudio.image2mpUpscale.aspectRatio');
+  localStorage.removeItem('rhstudio.faceT2I.prompt');
+  localStorage.removeItem('rhstudio.faceT2I.modelBranch');
+  localStorage.removeItem('rhstudio.faceT2I.aspect');
+  localStorage.removeItem('rhstudio.faceT2I.hd');
   $('#promptInput').value = localStorage.getItem(LS.prompt) || '';
   $('#aspectRatio').value = localStorage.getItem(LS.aspect) || '9:16 (Portrait Widescreen)';
   $('#qualityPreset').value = localStorage.getItem(LS.quality) || '0.9';
@@ -377,10 +349,6 @@ function loadConfig() {
   $('#whiteMarbleHeight').value = localStorage.getItem(LS.whiteMarbleHeight) || '1920';
   $('#whiteMarbleSeed').value = localStorage.getItem(LS.whiteMarbleSeed) || '527633149753192';
   $('#kq12PromptInput').value = localStorage.getItem(LS.kq12Prompt) || '';
-  $('#faceT2IPromptInput').value = localStorage.getItem(LS.faceT2IPrompt) || '';
-  $('#faceT2IModelBranch').value = localStorage.getItem(LS.faceT2IModelBranch) || 'true';
-  $('#faceT2IAspectRatio').value = localStorage.getItem(LS.faceT2IAspect) || '9:16';
-  $('#faceT2IHD').value = localStorage.getItem(LS.faceT2IHD) || 'false';
   $('#multiFastPromptInput').value = localStorage.getItem(LS.multiFastPrompt) || '';
   $('#multiFastAspectRatio').value = localStorage.getItem(LS.multiFastAspect) || '9:16 (Portrait Widescreen)';
   state.appFilter = localStorage.getItem(LS.appFilter) || 'all';
@@ -391,7 +359,6 @@ function loadConfig() {
   updateImagePromptCount();
   updateWhiteMarblePromptCount();
   updateKQ12PromptCount();
-  updateFaceT2IPromptCount();
   updateMultiFastPromptCount();
 }
 
@@ -426,10 +393,6 @@ function updateWhiteMarblePromptCount() {
 
 function updateKQ12PromptCount() {
   $('#kq12PromptCount').textContent = String($('#kq12PromptInput').value.length);
-}
-
-function updateFaceT2IPromptCount() {
-  $('#faceT2IPromptCount').textContent = String($('#faceT2IPromptInput').value.length);
 }
 
 function updateMultiFastPromptCount() {
@@ -477,15 +440,6 @@ $('#kq12PromptInput').addEventListener('input', () => {
   updateKQ12PromptCount();
 });
 $('#kq12PromptInput').addEventListener('change', persistKQ12Config);
-
-['faceT2IPromptInput','faceT2IModelBranch','faceT2IAspectRatio','faceT2IHD'].forEach(id => {
-  const el = $('#' + id);
-  el.addEventListener('input', () => {
-    persistFaceT2IConfig();
-    if (id === 'faceT2IPromptInput') updateFaceT2IPromptCount();
-  });
-  el.addEventListener('change', persistFaceT2IConfig);
-});
 
 ['multiFastPromptInput','multiFastAspectRatio'].forEach(id => {
   const el = $('#' + id);
@@ -688,68 +642,6 @@ $$('.upload-slot').forEach(el => {
     const file = input.files[0];
     if (file) setFile(slot, file);
   });
-});
-
-function clearFaceT2IFile() {
-  if (faceT2IState.faceObjectUrl) {
-    URL.revokeObjectURL(faceT2IState.faceObjectUrl);
-    faceT2IState.faceObjectUrl = '';
-  }
-  faceT2IState.faceFile = null;
-  const input = $('#faceT2IFileInput');
-  if (input) input.value = '';
-  renderFaceT2IInput();
-}
-
-function setFaceT2IFile(file) {
-  if (!file) return;
-  if (file.size > MAX_RH_UPLOAD_BYTES) {
-    toast('人脸参考图不能超过 30MB','bad');
-    return;
-  }
-
-  if (faceT2IState.faceObjectUrl) {
-    URL.revokeObjectURL(faceT2IState.faceObjectUrl);
-  }
-
-  faceT2IState.faceFile = file;
-  faceT2IState.faceObjectUrl = URL.createObjectURL(file);
-  renderFaceT2IInput();
-}
-
-function renderFaceT2IInput() {
-  const preview = $('#faceT2IPreview');
-  const fileName = $('#faceT2IFileName');
-  const clear = $('#faceT2IClear');
-  if (!preview || !fileName || !clear) return;
-
-  const file = faceT2IState.faceFile;
-  if (file && faceT2IState.faceObjectUrl) {
-    preview.innerHTML = '<img src="' + esc(faceT2IState.faceObjectUrl) + '" alt="face reference">';
-    fileName.textContent = file.name;
-    clear.classList.remove('hidden');
-  } else {
-    preview.innerHTML = '<span>FACE</span><i>＋</i>';
-    fileName.textContent = '指定人脸参考图';
-    clear.classList.add('hidden');
-  }
-}
-
-$('#faceT2IUpload').addEventListener('click', e => {
-  if (e.target.closest('#faceT2IClear')) {
-    e.preventDefault();
-    e.stopPropagation();
-    clearFaceT2IFile();
-    return;
-  }
-  $('#faceT2IFileInput').click();
-});
-
-$('#faceT2IFileInput').addEventListener('click', e => e.stopPropagation());
-$('#faceT2IFileInput').addEventListener('change', e => {
-  e.stopPropagation();
-  const file = e.target.files?.[0];
-  if (file) setFaceT2IFile(file);
 });
 
 function clearSkinUpscaleFile() {
@@ -1897,232 +1789,6 @@ async function queryKQ12Task(taskId) {
   }
 }
 
-function setFaceT2IStatus(status, meta='') {
-  const names = {
-    IDLE:'等待生成',
-    UPLOADING:'上传人脸',
-    SUBMITTING:'提交任务',
-    QUEUED:'排队中',
-    RUNNING:'生成中',
-    SUCCESS:'生成完成',
-    FAILED:'生成失败'
-  };
-
-  statusClass($('#faceT2IStatusDot'), status);
-  $('#faceT2IStatusText').textContent = names[status] || status;
-  $('#faceT2ITaskMeta').textContent = meta || 'READY';
-}
-
-function setFaceT2IDownload(url='', type='') {
-  faceT2IState.outputSourceUrl = url || '';
-  faceT2IState.outputUrl = toMediaUrl(url || '');
-  faceT2IState.outputType = type || '';
-  $('#faceT2IDownloadBtn').disabled = !faceT2IState.outputUrl;
-}
-
-function renderFaceT2IIdle() {
-  setFaceT2IStatus('IDLE','READY');
-  setFaceT2IDownload();
-  $('#faceT2IResultArea').innerHTML =
-    '<div class="empty-state">' +
-      '<div class="empty-mark">＋</div>' +
-      '<strong>准备生成图片</strong>' +
-      '<span>上传人脸参考图并输入提示词后开始生成。</span>' +
-    '</div>';
-}
-
-function renderFaceT2ILoading(status, taskId) {
-  setFaceT2IStatus(status, taskId ? ('TASK · ' + taskId) : 'PROCESSING');
-  setFaceT2IDownload();
-  $('#faceT2IResultArea').innerHTML =
-    '<div class="loading-state">' +
-      '<div class="loading-mark"></div>' +
-      '<strong>' + (status === 'QUEUED' ? '任务正在排队' : status === 'UPLOADING' ? '正在上传人脸参考图' : '图片正在生成') + '</strong>' +
-      '<span>' + (status === 'UPLOADING' ? '上传完成后会自动提交任务。' : '状态每 3 秒自动刷新。') + '</span>' +
-    '</div>';
-}
-
-function renderFaceT2ISuccess(task) {
-  const results = Array.isArray(task?.results) ? task.results : [];
-  const images = results.filter(isImage);
-  const primary = images[0] || results[0];
-
-  setFaceT2IStatus('SUCCESS', task?.taskId ? ('TASK · ' + task.taskId) : 'DONE');
-
-  if (!primary) {
-    setFaceT2IDownload();
-    $('#faceT2IResultArea').innerHTML =
-      '<div class="empty-state"><div class="empty-mark">✓</div><strong>任务完成</strong><span>没有返回可预览图片。</span></div>';
-    return;
-  }
-
-  const url = primary.url || '';
-  const type = String(primary.outputType || 'png').toLowerCase();
-  setFaceT2IDownload(url, type);
-
-  if (images.length > 1) {
-    $('#faceT2IResultArea').innerHTML =
-      '<div class="image-result-grid">' +
-        images.map(item => generatedImageTag(item.url || '')).join('') +
-      '</div>';
-    bindGeneratedImageFallbacks($('#faceT2IResultArea'));
-  } else if (url) {
-    $('#faceT2IResultArea').innerHTML = generatedImageTag(url);
-    bindGeneratedImageFallbacks($('#faceT2IResultArea'));
-  } else if (primary.text) {
-    $('#faceT2IResultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
-  }
-}
-
-function renderFaceT2IFailed(task, message) {
-  setFaceT2IStatus('FAILED', task?.taskId ? ('TASK · ' + task.taskId) : 'ERROR');
-  setFaceT2IDownload();
-  $('#faceT2IResultArea').innerHTML = failureHtml(task, message);
-}
-
-function getFaceT2INodes(faceValue, prompt) {
-  return [
-    {
-      nodeId:'20',
-      fieldName:'image',
-      fieldValue:faceValue,
-      description:'Face (preferably a large proportion)'
-    },
-    {
-      nodeId:'13',
-      fieldName:'text',
-      fieldValue:prompt,
-      description:'Prompt (limit words use @ to separate)'
-    },
-    {
-      nodeId:'209',
-      fieldName:'value',
-      fieldValue:$('#faceT2IModelBranch').value || 'true',
-      description:'Model <Qwen / Krea2>'
-    },
-    {
-      nodeId:'84',
-      fieldName:'aspect_ratio',
-      fieldValue:$('#faceT2IAspectRatio').value || '9:16',
-      description:'Output scale'
-    },
-    {
-      nodeId:'206',
-      fieldName:'value',
-      fieldValue:$('#faceT2IHD').value || 'false',
-      description:'HD'
-    },
-    {
-      nodeId:'90',
-      fieldName:'value',
-      fieldValue:'false',
-      description:'Output method <Direct output or ZIP>'
-    }
-  ];
-}
-
-async function runFaceT2ITask() {
-  if (faceT2IState.running) return;
-
-  if (!apiKey()) {
-    toast('请先在设置中保存 RunningHub API Key','bad');
-    openSettings();
-    return;
-  }
-
-  const prompt = $('#faceT2IPromptInput').value.trim();
-  if (!faceT2IState.faceFile) {
-    toast('请先上传指定人脸参考图','bad');
-    return;
-  }
-  if (!prompt) {
-    toast('请输入图片提示词','bad');
-    $('#faceT2IPromptInput').focus();
-    return;
-  }
-
-  faceT2IState.running = true;
-  $('#faceT2IRunBtn').disabled = true;
-  $('.face-t2i-generate-label').textContent = '上传人脸…';
-  setFaceT2IDownload();
-  renderFaceT2ILoading('UPLOADING');
-
-  try {
-    const faceValue = await uploadFile(faceT2IState.faceFile, apiKey());
-
-    setFaceT2IStatus('SUBMITTING','RUNNINGHUB');
-    $('.face-t2i-generate-label').textContent = '提交任务…';
-
-    const data = await runRHApp(
-      APPS[APP_KEYS.faceT2I].appId,
-      getFaceT2INodes(faceValue, prompt)
-    );
-    faceT2IState.task = data;
-
-    const modelBranch = $('#faceT2IModelBranch').value || 'true';
-    const hd = $('#faceT2IHD').value === 'true';
-
-    upsertHistory(APP_KEYS.faceT2I, data, {
-      createdAt:Date.now(),
-      aspect:$('#faceT2IAspectRatio').value || '9:16',
-      quality:(hd ? 'HD' : 'Standard') + ' · branch ' + modelBranch,
-      duration:'',
-      instance:instanceLabel($('#instanceType').value),
-      prompt:prompt.slice(0,120)
-    });
-
-    toast('图片生成任务已提交','good');
-
-    if (data.status === 'SUCCESS') {
-      renderFaceT2ISuccess(data);
-    } else if (data.status === 'FAILED') {
-      renderFaceT2IFailed(data);
-    } else {
-      renderFaceT2ILoading(data.status || 'RUNNING', data.taskId);
-      if (data.taskId) {
-        clearInterval(faceT2IState.poll);
-        faceT2IState.poll = setInterval(() => queryFaceT2ITask(data.taskId), 3000);
-      }
-    }
-  } catch (error) {
-    renderFaceT2IFailed(faceT2IState.task, error?.message || '运行失败');
-    toast(error?.message || '运行失败','bad');
-  } finally {
-    faceT2IState.running = false;
-    $('#faceT2IRunBtn').disabled = false;
-    $('.face-t2i-generate-label').textContent = '开始生成';
-  }
-}
-
-async function queryFaceT2ITask(taskId) {
-  try {
-    const data = await queryRH(taskId);
-    faceT2IState.task = data;
-    const status = data.status || 'RUNNING';
-
-    upsertHistory(APP_KEYS.faceT2I, data, {taskId});
-
-    if (status === 'SUCCESS') {
-      clearInterval(faceT2IState.poll);
-      faceT2IState.poll = null;
-      renderFaceT2ISuccess(data);
-      toast('图片生成完成','good');
-    } else if (status === 'FAILED') {
-      clearInterval(faceT2IState.poll);
-      faceT2IState.poll = null;
-      renderFaceT2IFailed(data);
-      toast('图片生成失败','bad');
-    } else {
-      renderFaceT2ILoading(status, data.taskId || taskId);
-    }
-  } catch (error) {
-    clearInterval(faceT2IState.poll);
-    faceT2IState.poll = null;
-    renderFaceT2IFailed(faceT2IState.task, error?.message || '任务查询失败');
-    toast(error?.message || '任务查询失败','bad');
-  }
-}
-
 function setSkinUpscaleStatus(status, meta='') {
   const names = {
     IDLE:'等待处理',
@@ -2562,8 +2228,6 @@ $('#whiteMarbleRunBtn').onclick = runWhiteMarbleTask;
 $('#whiteMarbleDownloadBtn').onclick = () => triggerDownload(whiteMarbleState, $('#whiteMarbleDownloadBtn'), 'rh-studio-white-marble');
 $('#kq12RunBtn').onclick = runKQ12Task;
 $('#kq12DownloadBtn').onclick = () => triggerDownload(kq12State, $('#kq12DownloadBtn'), 'rh-studio-kq12');
-$('#faceT2IRunBtn').onclick = runFaceT2ITask;
-$('#faceT2IDownloadBtn').onclick = () => triggerDownload(faceT2IState, $('#faceT2IDownloadBtn'), 'rh-studio-face-t2i-v3');
 $('#skinUpscaleRunBtn').onclick = runSkinUpscaleTask;
 $('#skinUpscaleDownloadBtn').onclick = () => triggerDownload(skinUpscaleState, $('#skinUpscaleDownloadBtn'), 'rh-studio-skin-upscale');
 $('#multiFastRunBtn').onclick = runMultiFastTask;
@@ -2606,10 +2270,6 @@ $('#clearLocal').onclick = () => {
     LS.whiteMarbleHeight,
     LS.whiteMarbleSeed,
     LS.kq12Prompt,
-    LS.faceT2IPrompt,
-    LS.faceT2IModelBranch,
-    LS.faceT2IAspect,
-    LS.faceT2IHD,
     LS.multiFastPrompt,
     LS.multiFastAspect,
     LS.appFilter,
@@ -2622,8 +2282,6 @@ $('#clearLocal').onclick = () => {
   renderImageIdle();
   renderWhiteMarbleIdle();
   renderKQ12Idle();
-  renderFaceT2IIdle();
-  clearFaceT2IFile();
   renderSkinUpscaleIdle();
   clearSkinUpscaleFile();
   renderMultiFastIdle();
@@ -2640,8 +2298,6 @@ renderVideoIdle();
 renderImageIdle();
 renderWhiteMarbleIdle();
 renderKQ12Idle();
-renderFaceT2IIdle();
-renderFaceT2IInput();
 renderSkinUpscaleIdle();
 renderSkinUpscaleInput();
 renderMultiFastIdle();
@@ -2668,9 +2324,6 @@ if (recoveryTaskId) {
   } else if (initialApp === APP_KEYS.kq12Portrait) {
     renderKQ12Loading('RUNNING', recoveryTaskId);
     queryKQ12Task(recoveryTaskId);
-  } else if (initialApp === APP_KEYS.faceT2I) {
-    renderFaceT2ILoading('RUNNING', recoveryTaskId);
-    queryFaceT2ITask(recoveryTaskId);
   } else if (initialApp === APP_KEYS.skinUpscale) {
     renderSkinUpscaleLoading('RUNNING', recoveryTaskId);
     querySkinUpscaleTask(recoveryTaskId);
