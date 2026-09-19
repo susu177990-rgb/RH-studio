@@ -17,12 +17,21 @@ const APPS = {
     subtitle: '纯文本生成',
     title: '2MP 文生图 · 纯文本生成',
     type: 'image'
+  },
+  'image-2mp-upscale': {
+    key: 'image-2mp-upscale',
+    appId: '2090951249314521089',
+    name: '2MP 生图 · 1.5×',
+    subtitle: '8 Steps · Euler A',
+    title: '2MP 生图 · 1.5× · 8 Steps',
+    type: 'image'
   }
 };
 
 const APP_KEYS = {
   video: 'minimax-h3',
-  image: 'image-2mp'
+  image: 'image-2mp',
+  imageUpscale: 'image-2mp-upscale'
 };
 
 const RH_UPLOAD_DIRECT = 'https://www.runninghub.ai/openapi/v2/media/upload/binary';
@@ -37,6 +46,8 @@ const LS = {
   duration: 'rhstudio.duration',
   imagePrompt: 'rhstudio.image2mp.prompt',
   imageAspect: 'rhstudio.image2mp.aspectRatio',
+  imageUpscalePrompt: 'rhstudio.image2mpUpscale.prompt',
+  imageUpscaleAspect: 'rhstudio.image2mpUpscale.aspectRatio',
   inst: 'rhstudio.instanceType',
   history: 'rhstudio.generationHistory'
 };
@@ -70,6 +81,15 @@ const videoState = {
 };
 
 const imageState = {
+  task: null,
+  poll: null,
+  running: false,
+  outputUrl: '',
+  outputSourceUrl: '',
+  outputType: ''
+};
+
+const imageUpscaleState = {
   task: null,
   poll: null,
   running: false,
@@ -130,6 +150,7 @@ function setActiveApp(key, persist=true) {
 
   $('#workspaceVideo').classList.toggle('hidden', key !== APP_KEYS.video);
   $('#workspaceImage').classList.toggle('hidden', key !== APP_KEYS.image);
+  $('#workspaceImageUpscale').classList.toggle('hidden', key !== APP_KEYS.imageUpscale);
 
   const app = APPS[key];
   $('#currentAppTitle').textContent = app.title;
@@ -150,6 +171,11 @@ function persistImageConfig() {
   localStorage.setItem(LS.imageAspect, $('#imageAspectRatio').value);
 }
 
+function persistImageUpscaleConfig() {
+  localStorage.setItem(LS.imageUpscalePrompt, $('#imageUpscalePromptInput').value);
+  localStorage.setItem(LS.imageUpscaleAspect, $('#imageUpscaleAspectRatio').value);
+}
+
 function loadConfig() {
   $('#promptInput').value = localStorage.getItem(LS.prompt) || '';
   $('#aspectRatio').value = localStorage.getItem(LS.aspect) || '9:16 (Portrait Widescreen)';
@@ -162,11 +188,14 @@ function loadConfig() {
 
   $('#imagePromptInput').value = localStorage.getItem(LS.imagePrompt) || '';
   $('#imageAspectRatio').value = localStorage.getItem(LS.imageAspect) || '9:16 (Portrait Widescreen)';
+  $('#imageUpscalePromptInput').value = localStorage.getItem(LS.imageUpscalePrompt) || '';
+  $('#imageUpscaleAspectRatio').value = localStorage.getItem(LS.imageUpscaleAspect) || '3:4 (Portrait Standard)';
   $('#instanceType').value = localStorage.getItem(LS.inst) || 'default';
 
   updateDurationUI();
   updatePromptCount();
   updateImagePromptCount();
+  updateImageUpscalePromptCount();
 }
 
 function updateDurationUI() {
@@ -194,6 +223,10 @@ function updateImagePromptCount() {
   $('#imagePromptCount').textContent = String($('#imagePromptInput').value.length);
 }
 
+function updateImageUpscalePromptCount() {
+  $('#imageUpscalePromptCount').textContent = String($('#imageUpscalePromptInput').value.length);
+}
+
 ['promptInput','aspectRatio','qualityPreset','durationRange'].forEach(id => {
   const el = $('#' + id);
   el.addEventListener('input', () => {
@@ -211,6 +244,15 @@ function updateImagePromptCount() {
     if (id === 'imagePromptInput') updateImagePromptCount();
   });
   el.addEventListener('change', persistImageConfig);
+});
+
+['imageUpscalePromptInput','imageUpscaleAspectRatio'].forEach(id => {
+  const el = $('#' + id);
+  el.addEventListener('input', () => {
+    persistImageUpscaleConfig();
+    if (id === 'imageUpscalePromptInput') updateImageUpscalePromptCount();
+  });
+  el.addEventListener('change', persistImageUpscaleConfig);
 });
 
 $('#instanceType').addEventListener('change', () => {
@@ -1065,6 +1107,189 @@ async function queryImageTask(taskId) {
   }
 }
 
+function setImageUpscaleStatus(status, meta='') {
+  const names = {
+    IDLE:'等待生成',
+    SUBMITTING:'提交任务',
+    QUEUED:'排队中',
+    RUNNING:'生成中',
+    SUCCESS:'生成完成',
+    FAILED:'生成失败'
+  };
+
+  statusClass($('#imageUpscaleStatusDot'), status);
+  $('#imageUpscaleStatusText').textContent = names[status] || status;
+  $('#imageUpscaleTaskMeta').textContent = meta || 'READY';
+}
+
+function setImageUpscaleDownload(url='', type='') {
+  imageUpscaleState.outputSourceUrl = url || '';
+  imageUpscaleState.outputUrl = toMediaUrl(url || '');
+  imageUpscaleState.outputType = type || '';
+  $('#imageUpscaleDownloadBtn').disabled = !imageUpscaleState.outputUrl;
+}
+
+function renderImageUpscaleIdle() {
+  setImageUpscaleStatus('IDLE','READY');
+  setImageUpscaleDownload();
+  $('#imageUpscaleResultArea').innerHTML =
+    '<div class="empty-state">' +
+      '<div class="empty-mark">＋</div>' +
+      '<strong>准备生成图片</strong>' +
+      '<span>输入提示词并选择画幅，生成结果会显示在这里。</span>' +
+    '</div>';
+}
+
+function renderImageUpscaleLoading(status, taskId) {
+  setImageUpscaleStatus(status, taskId ? ('TASK · ' + taskId) : 'PROCESSING');
+  setImageUpscaleDownload();
+  $('#imageUpscaleResultArea').innerHTML =
+    '<div class="loading-state">' +
+      '<div class="loading-mark"></div>' +
+      '<strong>' + (status === 'QUEUED' ? '任务正在排队' : '图片正在生成') + '</strong>' +
+      '<span>状态每 3 秒自动刷新。</span>' +
+    '</div>';
+}
+
+function renderImageUpscaleSuccess(task) {
+  const results = Array.isArray(task?.results) ? task.results : [];
+  const images = results.filter(isImage);
+  const primary = images[0] || results[0];
+
+  setImageUpscaleStatus('SUCCESS', task?.taskId ? ('TASK · ' + task.taskId) : 'DONE');
+
+  if (!primary) {
+    setImageUpscaleDownload();
+    $('#imageUpscaleResultArea').innerHTML =
+      '<div class="empty-state"><div class="empty-mark">✓</div><strong>任务完成</strong><span>没有返回可预览图片。</span></div>';
+    return;
+  }
+
+  const url = primary.url || '';
+  const type = String(primary.outputType || 'png').toLowerCase();
+  setImageUpscaleDownload(url, type);
+
+  if (images.length > 1) {
+    $('#imageUpscaleResultArea').innerHTML =
+      '<div class="image-result-grid">' +
+        images.map(item => generatedImageTag(item.url || '')).join('') +
+      '</div>';
+    bindGeneratedImageFallbacks($('#imageUpscaleResultArea'));
+  } else if (url) {
+    $('#imageUpscaleResultArea').innerHTML = generatedImageTag(url);
+    bindGeneratedImageFallbacks($('#imageUpscaleResultArea'));
+  } else if (primary.text) {
+    $('#imageUpscaleResultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
+  }
+}
+
+function renderImageUpscaleFailed(task, message) {
+  setImageUpscaleStatus('FAILED', task?.taskId ? ('TASK · ' + task.taskId) : 'ERROR');
+  setImageUpscaleDownload();
+  $('#imageUpscaleResultArea').innerHTML = failureHtml(task, message);
+}
+
+function getImageUpscaleNodes(prompt) {
+  return [
+    {nodeId:'49',fieldName:'aspect_ratio',fieldValue:$('#imageUpscaleAspectRatio').value,description:null},
+    {nodeId:'49',fieldName:'megapixels',fieldValue:'2',description:null},
+    {nodeId:'63',fieldName:'value',fieldValue:prompt,description:null},
+    {nodeId:'95',fieldName:'scale_by',fieldValue:'1.5',description:null},
+    {nodeId:'53',fieldName:'cfg',fieldValue:'1',description:null},
+    {nodeId:'53',fieldName:'denoise',fieldValue:'1',description:null},
+    {nodeId:'53',fieldName:'sampler_name',fieldValue:'euler_ancestral',description:null},
+    {nodeId:'53',fieldName:'scheduler',fieldValue:'sgm_uniform',description:null},
+    {nodeId:'53',fieldName:'steps',fieldValue:'8',description:null}
+  ];
+}
+
+async function runImageUpscaleTask() {
+  if (imageUpscaleState.running) return;
+
+  if (!apiKey()) {
+    toast('请先在设置中保存 RunningHub API Key','bad');
+    openSettings();
+    return;
+  }
+
+  const prompt = $('#imageUpscalePromptInput').value.trim();
+  if (!prompt) {
+    toast('请输入图片提示词','bad');
+    $('#imageUpscalePromptInput').focus();
+    return;
+  }
+
+  imageUpscaleState.running = true;
+  $('#imageUpscaleRunBtn').disabled = true;
+  $('.image-upscale-generate-label').textContent = '提交任务…';
+  setImageUpscaleDownload();
+  setImageUpscaleStatus('SUBMITTING','RUNNINGHUB');
+
+  try {
+    const data = await runRHApp(APPS[APP_KEYS.imageUpscale].appId, getImageUpscaleNodes(prompt));
+    imageUpscaleState.task = data;
+
+    upsertHistory(APP_KEYS.imageUpscale, data, {
+      createdAt:Date.now(),
+      aspect:($('#imageUpscaleAspectRatio').value || '').split(' ')[0],
+      quality:'2MP · 1.5×',
+      duration:'',
+      instance:instanceLabel($('#instanceType').value),
+      prompt:prompt.slice(0,120)
+    });
+
+    toast('图片生成任务已提交','good');
+
+    if (data.status === 'SUCCESS') {
+      renderImageUpscaleSuccess(data);
+    } else if (data.status === 'FAILED') {
+      renderImageUpscaleFailed(data);
+    } else {
+      renderImageUpscaleLoading(data.status || 'RUNNING', data.taskId);
+      if (data.taskId) {
+        clearInterval(imageUpscaleState.poll);
+        imageUpscaleState.poll = setInterval(() => queryImageUpscaleTask(data.taskId), 3000);
+      }
+    }
+  } catch (error) {
+    renderImageUpscaleFailed(imageUpscaleState.task, error?.message || '运行失败');
+    toast(error?.message || '运行失败','bad');
+  } finally {
+    imageUpscaleState.running = false;
+    $('#imageUpscaleRunBtn').disabled = false;
+    $('.image-upscale-generate-label').textContent = '开始生成';
+  }
+}
+
+async function queryImageUpscaleTask(taskId) {
+  try {
+    const data = await queryRH(taskId);
+    imageUpscaleState.task = data;
+    const status = data.status || 'RUNNING';
+
+    upsertHistory(APP_KEYS.imageUpscale, data, {taskId});
+
+    if (status === 'SUCCESS') {
+      clearInterval(imageUpscaleState.poll);
+      imageUpscaleState.poll = null;
+      renderImageUpscaleSuccess(data);
+      toast('图片生成完成','good');
+    } else if (status === 'FAILED') {
+      clearInterval(imageUpscaleState.poll);
+      imageUpscaleState.poll = null;
+      renderImageUpscaleFailed(data);
+      toast('图片生成失败','bad');
+    } else {
+      renderImageUpscaleLoading(status, data.taskId || taskId);
+    }
+  } catch (error) {
+    clearInterval(imageUpscaleState.poll);
+    imageUpscaleState.poll = null;
+    renderImageUpscaleFailed(imageUpscaleState.task, error?.message || '任务查询失败');
+    toast(error?.message || '任务查询失败','bad');
+  }
+}
+
 function triggerDownload(outputState, button, prefix) {
   if (!outputState.outputUrl) return;
 
@@ -1098,6 +1323,8 @@ $('#runBtn').onclick = runVideoTask;
 $('#downloadBtn').onclick = () => triggerDownload(videoState, $('#downloadBtn'), 'rh-studio-video');
 $('#imageRunBtn').onclick = runImageTask;
 $('#imageDownloadBtn').onclick = () => triggerDownload(imageState, $('#imageDownloadBtn'), 'rh-studio-image');
+$('#imageUpscaleRunBtn').onclick = runImageUpscaleTask;
+$('#imageUpscaleDownloadBtn').onclick = () => triggerDownload(imageUpscaleState, $('#imageUpscaleDownloadBtn'), 'rh-studio-image-upscale');
 
 $('#toggleKey').onclick = () => {
   const input = $('#apiKeyInput');
@@ -1131,6 +1358,8 @@ $('#clearLocal').onclick = () => {
     LS.duration,
     LS.imagePrompt,
     LS.imageAspect,
+    LS.imageUpscalePrompt,
+    LS.imageUpscaleAspect,
     LS.inst
   ].forEach(k => localStorage.removeItem(k));
 
@@ -1138,6 +1367,7 @@ $('#clearLocal').onclick = () => {
   loadConfig();
   renderVideoIdle();
   renderImageIdle();
+  renderImageUpscaleIdle();
   setActiveApp(APP_KEYS.video);
   toast('本地应用配置已重置');
 };
@@ -1147,6 +1377,7 @@ updateKeyUI();
 Object.keys(MEDIA).forEach(renderFileSlot);
 renderVideoIdle();
 renderImageIdle();
+renderImageUpscaleIdle();
 
 const params = new URLSearchParams(window.location.search);
 const requestedApp = params.get('app');
@@ -1163,6 +1394,9 @@ if (recoveryTaskId) {
   } else if (initialApp === APP_KEYS.image) {
     renderImageLoading('RUNNING', recoveryTaskId);
     queryImageTask(recoveryTaskId);
+  } else if (initialApp === APP_KEYS.imageUpscale) {
+    renderImageUpscaleLoading('RUNNING', recoveryTaskId);
+    queryImageUpscaleTask(recoveryTaskId);
   } else {
     renderVideoLoading('RUNNING', recoveryTaskId);
     queryVideoTask(recoveryTaskId);
