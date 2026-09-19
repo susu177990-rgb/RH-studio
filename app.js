@@ -257,10 +257,7 @@ function openSettings() {
 }
 
 function openHistory() {
-  closeDrawers();
-  renderHistory();
-  $('#historyOverlay').classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
+  window.location.href = '/history';
 }
 
 $('#openSettings').onclick = openSettings;
