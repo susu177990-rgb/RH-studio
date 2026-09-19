@@ -49,6 +49,14 @@ const APPS = {
     subtitle: 'Face Guided',
     title: '指定人脸文生图V3 -(Qwen/Krea2)双版本',
     type: 'image'
+  },
+  'skin-upscale': {
+    key: 'skin-upscale',
+    appId: '2050826078431793153',
+    name: '去AI感真实皮肤高清放大',
+    subtitle: 'Image Enhance',
+    title: '去AI感真实皮肤高清放大',
+    type: 'image'
   }
 };
 
@@ -58,7 +66,8 @@ const APP_KEYS = {
   imageUpscale: 'image-2mp-upscale',
   whiteMarble: 'krea2-white-marble',
   kq12Portrait: 'kq12-portrait',
-  faceT2I: 'face-t2i-v3'
+  faceT2I: 'face-t2i-v3',
+  skinUpscale: 'skin-upscale'
 };
 
 const RH_UPLOAD_DIRECT = 'https://www.runninghub.ai/openapi/v2/media/upload/binary';
@@ -163,6 +172,17 @@ const faceT2IState = {
   faceObjectUrl: ''
 };
 
+const skinUpscaleState = {
+  task: null,
+  poll: null,
+  running: false,
+  outputUrl: '',
+  outputSourceUrl: '',
+  outputType: '',
+  inputFile: null,
+  inputObjectUrl: ''
+};
+
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
 }[c]));
@@ -219,6 +239,7 @@ function setActiveApp(key, persist=true) {
   $('#workspaceWhiteMarble').classList.toggle('hidden', key !== APP_KEYS.whiteMarble);
   $('#workspaceKQ12').classList.toggle('hidden', key !== APP_KEYS.kq12Portrait);
   $('#workspaceFaceT2I').classList.toggle('hidden', key !== APP_KEYS.faceT2I);
+  $('#workspaceSkinUpscale').classList.toggle('hidden', key !== APP_KEYS.skinUpscale);
 
   const app = APPS[key];
   $('#currentAppTitle').textContent = app.title;
@@ -644,6 +665,68 @@ $('#faceT2IFileInput').addEventListener('change', e => {
   e.stopPropagation();
   const file = e.target.files?.[0];
   if (file) setFaceT2IFile(file);
+});
+
+function clearSkinUpscaleFile() {
+  if (skinUpscaleState.inputObjectUrl) {
+    URL.revokeObjectURL(skinUpscaleState.inputObjectUrl);
+    skinUpscaleState.inputObjectUrl = '';
+  }
+  skinUpscaleState.inputFile = null;
+  const input = $('#skinUpscaleFileInput');
+  if (input) input.value = '';
+  renderSkinUpscaleInput();
+}
+
+function setSkinUpscaleFile(file) {
+  if (!file) return;
+  if (file.size > MAX_RH_UPLOAD_BYTES) {
+    toast('输入图片不能超过 30MB','bad');
+    return;
+  }
+
+  if (skinUpscaleState.inputObjectUrl) {
+    URL.revokeObjectURL(skinUpscaleState.inputObjectUrl);
+  }
+
+  skinUpscaleState.inputFile = file;
+  skinUpscaleState.inputObjectUrl = URL.createObjectURL(file);
+  renderSkinUpscaleInput();
+}
+
+function renderSkinUpscaleInput() {
+  const preview = $('#skinUpscalePreview');
+  const fileName = $('#skinUpscaleFileName');
+  const clear = $('#skinUpscaleClear');
+  if (!preview || !fileName || !clear) return;
+
+  const file = skinUpscaleState.inputFile;
+  if (file && skinUpscaleState.inputObjectUrl) {
+    preview.innerHTML = '<img src="' + esc(skinUpscaleState.inputObjectUrl) + '" alt="input image">';
+    fileName.textContent = file.name;
+    clear.classList.remove('hidden');
+  } else {
+    preview.innerHTML = '<span>IMAGE</span><i>＋</i>';
+    fileName.textContent = '上传需要高清放大的图片';
+    clear.classList.add('hidden');
+  }
+}
+
+$('#skinUpscaleUpload').addEventListener('click', e => {
+  if (e.target.closest('#skinUpscaleClear')) {
+    e.preventDefault();
+    e.stopPropagation();
+    clearSkinUpscaleFile();
+    return;
+  }
+  $('#skinUpscaleFileInput').click();
+});
+
+$('#skinUpscaleFileInput').addEventListener('click', e => e.stopPropagation());
+$('#skinUpscaleFileInput').addEventListener('change', e => {
+  e.stopPropagation();
+  const file = e.target.files?.[0];
+  if (file) setSkinUpscaleFile(file);
 });
 
 function extractUploadValue(data) {
@@ -2127,6 +2210,193 @@ async function queryFaceT2ITask(taskId) {
   }
 }
 
+function setSkinUpscaleStatus(status, meta='') {
+  const names = {
+    IDLE:'等待处理',
+    UPLOADING:'上传原图',
+    SUBMITTING:'提交任务',
+    QUEUED:'排队中',
+    RUNNING:'处理中',
+    SUCCESS:'处理完成',
+    FAILED:'处理失败'
+  };
+
+  statusClass($('#skinUpscaleStatusDot'), status);
+  $('#skinUpscaleStatusText').textContent = names[status] || status;
+  $('#skinUpscaleTaskMeta').textContent = meta || 'READY';
+}
+
+function setSkinUpscaleDownload(url='', type='') {
+  skinUpscaleState.outputSourceUrl = url || '';
+  skinUpscaleState.outputUrl = toMediaUrl(url || '');
+  skinUpscaleState.outputType = type || '';
+  $('#skinUpscaleDownloadBtn').disabled = !skinUpscaleState.outputUrl;
+}
+
+function renderSkinUpscaleIdle() {
+  setSkinUpscaleStatus('IDLE','READY');
+  setSkinUpscaleDownload();
+  $('#skinUpscaleResultArea').innerHTML =
+    '<div class="empty-state">' +
+      '<div class="empty-mark">＋</div>' +
+      '<strong>准备处理图片</strong>' +
+      '<span>上传原图后即可开始高清放大。</span>' +
+    '</div>';
+}
+
+function renderSkinUpscaleLoading(status, taskId) {
+  setSkinUpscaleStatus(status, taskId ? ('TASK · ' + taskId) : 'PROCESSING');
+  setSkinUpscaleDownload();
+  $('#skinUpscaleResultArea').innerHTML =
+    '<div class="loading-state">' +
+      '<div class="loading-mark"></div>' +
+      '<strong>' + (status === 'QUEUED' ? '任务正在排队' : status === 'UPLOADING' ? '正在上传原图' : '正在处理图片') + '</strong>' +
+      '<span>' + (status === 'UPLOADING' ? '上传完成后会自动提交任务。' : '状态每 3 秒自动刷新。') + '</span>' +
+    '</div>';
+}
+
+function renderSkinUpscaleSuccess(task) {
+  const results = Array.isArray(task?.results) ? task.results : [];
+  const images = results.filter(isImage);
+  const primary = images[0] || results[0];
+
+  setSkinUpscaleStatus('SUCCESS', task?.taskId ? ('TASK · ' + task.taskId) : 'DONE');
+
+  if (!primary) {
+    setSkinUpscaleDownload();
+    $('#skinUpscaleResultArea').innerHTML =
+      '<div class="empty-state"><div class="empty-mark">✓</div><strong>任务完成</strong><span>没有返回可预览图片。</span></div>';
+    return;
+  }
+
+  const url = primary.url || '';
+  const type = String(primary.outputType || 'png').toLowerCase();
+  setSkinUpscaleDownload(url, type);
+
+  if (images.length > 1) {
+    $('#skinUpscaleResultArea').innerHTML =
+      '<div class="image-result-grid">' +
+        images.map(item => generatedImageTag(item.url || '')).join('') +
+      '</div>';
+    bindGeneratedImageFallbacks($('#skinUpscaleResultArea'));
+  } else if (url) {
+    $('#skinUpscaleResultArea').innerHTML = generatedImageTag(url);
+    bindGeneratedImageFallbacks($('#skinUpscaleResultArea'));
+  } else if (primary.text) {
+    $('#skinUpscaleResultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
+  }
+}
+
+function renderSkinUpscaleFailed(task, message) {
+  setSkinUpscaleStatus('FAILED', task?.taskId ? ('TASK · ' + task.taskId) : 'ERROR');
+  setSkinUpscaleDownload();
+  $('#skinUpscaleResultArea').innerHTML = failureHtml(task, message);
+}
+
+function getSkinUpscaleNodes(imageValue) {
+  return [
+    {
+      nodeId:'46',
+      fieldName:'image',
+      fieldValue:imageValue,
+      description:'image'
+    }
+  ];
+}
+
+async function runSkinUpscaleTask() {
+  if (skinUpscaleState.running) return;
+
+  if (!apiKey()) {
+    toast('请先在设置中保存 RunningHub API Key','bad');
+    openSettings();
+    return;
+  }
+
+  if (!skinUpscaleState.inputFile) {
+    toast('请先上传需要处理的图片','bad');
+    return;
+  }
+
+  skinUpscaleState.running = true;
+  $('#skinUpscaleRunBtn').disabled = true;
+  $('.skin-upscale-generate-label').textContent = '上传原图…';
+  setSkinUpscaleDownload();
+  renderSkinUpscaleLoading('UPLOADING');
+
+  try {
+    const imageValue = await uploadFile(skinUpscaleState.inputFile, apiKey());
+
+    setSkinUpscaleStatus('SUBMITTING','RUNNINGHUB');
+    $('.skin-upscale-generate-label').textContent = '提交任务…';
+
+    const data = await runRHApp(
+      APPS[APP_KEYS.skinUpscale].appId,
+      getSkinUpscaleNodes(imageValue)
+    );
+    skinUpscaleState.task = data;
+
+    upsertHistory(APP_KEYS.skinUpscale, data, {
+      createdAt:Date.now(),
+      aspect:'',
+      quality:'高清放大',
+      duration:'',
+      instance:instanceLabel($('#instanceType').value),
+      prompt:''
+    });
+
+    toast('高清放大任务已提交','good');
+
+    if (data.status === 'SUCCESS') {
+      renderSkinUpscaleSuccess(data);
+    } else if (data.status === 'FAILED') {
+      renderSkinUpscaleFailed(data);
+    } else {
+      renderSkinUpscaleLoading(data.status || 'RUNNING', data.taskId);
+      if (data.taskId) {
+        clearInterval(skinUpscaleState.poll);
+        skinUpscaleState.poll = setInterval(() => querySkinUpscaleTask(data.taskId), 3000);
+      }
+    }
+  } catch (error) {
+    renderSkinUpscaleFailed(skinUpscaleState.task, error?.message || '运行失败');
+    toast(error?.message || '运行失败','bad');
+  } finally {
+    skinUpscaleState.running = false;
+    $('#skinUpscaleRunBtn').disabled = false;
+    $('.skin-upscale-generate-label').textContent = '开始处理';
+  }
+}
+
+async function querySkinUpscaleTask(taskId) {
+  try {
+    const data = await queryRH(taskId);
+    skinUpscaleState.task = data;
+    const status = data.status || 'RUNNING';
+
+    upsertHistory(APP_KEYS.skinUpscale, data, {taskId});
+
+    if (status === 'SUCCESS') {
+      clearInterval(skinUpscaleState.poll);
+      skinUpscaleState.poll = null;
+      renderSkinUpscaleSuccess(data);
+      toast('图片处理完成','good');
+    } else if (status === 'FAILED') {
+      clearInterval(skinUpscaleState.poll);
+      skinUpscaleState.poll = null;
+      renderSkinUpscaleFailed(data);
+      toast('图片处理失败','bad');
+    } else {
+      renderSkinUpscaleLoading(status, data.taskId || taskId);
+    }
+  } catch (error) {
+    clearInterval(skinUpscaleState.poll);
+    skinUpscaleState.poll = null;
+    renderSkinUpscaleFailed(skinUpscaleState.task, error?.message || '任务查询失败');
+    toast(error?.message || '任务查询失败','bad');
+  }
+}
+
 function triggerDownload(outputState, button, prefix) {
   if (!outputState.outputUrl) return;
 
@@ -2168,6 +2438,8 @@ $('#kq12RunBtn').onclick = runKQ12Task;
 $('#kq12DownloadBtn').onclick = () => triggerDownload(kq12State, $('#kq12DownloadBtn'), 'rh-studio-kq12');
 $('#faceT2IRunBtn').onclick = runFaceT2ITask;
 $('#faceT2IDownloadBtn').onclick = () => triggerDownload(faceT2IState, $('#faceT2IDownloadBtn'), 'rh-studio-face-t2i-v3');
+$('#skinUpscaleRunBtn').onclick = runSkinUpscaleTask;
+$('#skinUpscaleDownloadBtn').onclick = () => triggerDownload(skinUpscaleState, $('#skinUpscaleDownloadBtn'), 'rh-studio-skin-upscale');
 
 $('#toggleKey').onclick = () => {
   const input = $('#apiKeyInput');
@@ -2224,6 +2496,8 @@ $('#clearLocal').onclick = () => {
   renderKQ12Idle();
   renderFaceT2IIdle();
   clearFaceT2IFile();
+  renderSkinUpscaleIdle();
+  clearSkinUpscaleFile();
   setActiveApp(APP_KEYS.video);
   toast('本地应用配置已重置');
 };
@@ -2238,6 +2512,8 @@ renderWhiteMarbleIdle();
 renderKQ12Idle();
 renderFaceT2IIdle();
 renderFaceT2IInput();
+renderSkinUpscaleIdle();
+renderSkinUpscaleInput();
 
 const params = new URLSearchParams(window.location.search);
 const requestedApp = params.get('app');
@@ -2266,6 +2542,9 @@ if (recoveryTaskId) {
   } else if (initialApp === APP_KEYS.faceT2I) {
     renderFaceT2ILoading('RUNNING', recoveryTaskId);
     queryFaceT2ITask(recoveryTaskId);
+  } else if (initialApp === APP_KEYS.skinUpscale) {
+    renderSkinUpscaleLoading('RUNNING', recoveryTaskId);
+    querySkinUpscaleTask(recoveryTaskId);
   } else {
     renderVideoLoading('RUNNING', recoveryTaskId);
     queryVideoTask(recoveryTaskId);
