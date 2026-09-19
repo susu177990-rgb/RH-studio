@@ -93,6 +93,7 @@ const LS = {
   faceT2IModelBranch: 'rhstudio.faceT2I.modelBranch',
   faceT2IAspect: 'rhstudio.faceT2I.aspect',
   faceT2IHD: 'rhstudio.faceT2I.hd',
+  appFilter: 'rhstudio.appFilter',
   inst: 'rhstudio.instanceType',
   history: 'rhstudio.generationHistory'
 };
@@ -112,6 +113,7 @@ const MEDIA = {
 
 const state = {
   activeApp: APP_KEYS.video,
+  appFilter: 'all',
   files: {},
   objectUrls: {}
 };
@@ -248,6 +250,61 @@ function setActiveApp(key, persist=true) {
   if (persist) localStorage.setItem(LS.active, key);
 }
 
+function renderAppFilter(filter='all', persist=true, autoSelect=true) {
+  const validFilters = new Set(['all','image','video','text']);
+  if (!validFilters.has(filter)) filter = 'all';
+  state.appFilter = filter;
+
+  const counts = {all:0,image:0,video:0,text:0};
+  Object.values(APPS).forEach(app => {
+    counts.all += 1;
+    if (counts[app.type] != null) counts[app.type] += 1;
+  });
+
+  const countEls = {
+    all:$('#appFilterCountAll'),
+    image:$('#appFilterCountImage'),
+    video:$('#appFilterCountVideo'),
+    text:$('#appFilterCountText')
+  };
+  Object.entries(countEls).forEach(([key,el]) => {
+    if (el) el.textContent = String(counts[key] || 0);
+  });
+
+  const visibleItems = [];
+  $('.app-item').forEach(item => {
+    const app = APPS[item.dataset.app];
+    const visible = filter === 'all' || app?.type === filter;
+    item.classList.toggle('filter-hidden', !visible);
+    if (visible) visibleItems.push(item);
+  });
+
+  $('.app-filter-btn').forEach(button => {
+    const active = button.dataset.appFilter === filter;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+
+  const empty = $('#appFilterEmpty');
+  if (empty) {
+    const labels = {image:'图片',video:'视频',text:'文字',all:'全部'};
+    empty.classList.toggle('hidden', visibleItems.length > 0);
+    const strong = empty.querySelector('strong');
+    const span = empty.querySelector('span');
+    if (strong) strong.textContent = visibleItems.length ? '' : '暂无' + labels[filter] + '应用';
+    if (span) span.textContent = visibleItems.length ? '' : '这个分类还没有接入应用。';
+  }
+
+  if (autoSelect && filter !== 'all') {
+    const activeApp = APPS[state.activeApp];
+    if (activeApp?.type !== filter && visibleItems.length) {
+      setActiveApp(visibleItems[0].dataset.app);
+    }
+  }
+
+  if (persist) localStorage.setItem(LS.appFilter, filter);
+}
+
 function persistVideoConfig() {
   localStorage.setItem(LS.prompt, $('#promptInput').value);
   localStorage.setItem(LS.aspect, $('#aspectRatio').value);
@@ -306,6 +363,7 @@ function loadConfig() {
   $('#faceT2IModelBranch').value = localStorage.getItem(LS.faceT2IModelBranch) || 'true';
   $('#faceT2IAspectRatio').value = localStorage.getItem(LS.faceT2IAspect) || '9:16';
   $('#faceT2IHD').value = localStorage.getItem(LS.faceT2IHD) || 'false';
+  state.appFilter = localStorage.getItem(LS.appFilter) || 'all';
   $('#instanceType').value = localStorage.getItem(LS.inst) || 'default';
 
   updateDurationUI();
@@ -422,8 +480,14 @@ $('#instanceType').addEventListener('change', () => {
   localStorage.setItem(LS.inst, $('#instanceType').value);
 });
 
-$$('.app-item').forEach(item => {
+$('.app-item').forEach(item => {
   item.addEventListener('click', () => setActiveApp(item.dataset.app));
+});
+
+$('.app-filter-btn').forEach(button => {
+  button.addEventListener('click', () => {
+    renderAppFilter(button.dataset.appFilter || 'all');
+  });
 });
 
 function getHistory() {
@@ -2484,6 +2548,7 @@ $('#clearLocal').onclick = () => {
     LS.faceT2IModelBranch,
     LS.faceT2IAspect,
     LS.faceT2IHD,
+    LS.appFilter,
     LS.inst
   ].forEach(k => localStorage.removeItem(k));
 
@@ -2498,6 +2563,7 @@ $('#clearLocal').onclick = () => {
   clearFaceT2IFile();
   renderSkinUpscaleIdle();
   clearSkinUpscaleFile();
+  renderAppFilter('all', false, false);
   setActiveApp(APP_KEYS.video);
   toast('本地应用配置已重置');
 };
@@ -2523,6 +2589,7 @@ const initialApp = APPS[requestedApp]
   : (APPS[localStorage.getItem(LS.active)] ? localStorage.getItem(LS.active) : APP_KEYS.video);
 
 setActiveApp(initialApp, false);
+renderAppFilter(state.appFilter, false, true);
 
 if (recoveryTaskId) {
   if (!apiKey()) {
