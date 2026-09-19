@@ -66,6 +66,15 @@
           </div>
           <i class="active-dot"></i>
         </button>
+
+        <button class="app-item" data-app="face-t2i-v3" type="button">
+          <div class="app-icon">F3</div>
+          <div class="app-copy">
+            <strong>指定人脸文生图V3</strong>
+            <span>Qwen / Krea2 双版本</span>
+          </div>
+          <i class="active-dot"></i>
+        </button>
       </div>
     </div>
 
@@ -601,6 +610,117 @@
 
         <button id="kq12RunBtn" class="generate-btn image-generate-btn" type="button">
           <span class="kq12-generate-label">开始生成</span><b>↗</b>
+        </button>
+      </section>
+    </div>
+
+
+    <div id="workspaceFaceT2I" class="workspace app-workspace image-workspace hidden">
+      <div class="image-workspace-main face-workspace-main">
+        <section class="image-prompt-panel face-input-panel glass">
+          <div class="panel-head">
+            <div>
+              <span>FACE + PROMPT</span>
+              <h2>人脸与提示词</h2>
+            </div>
+            <b id="faceT2IPromptCount">0</b>
+          </div>
+
+          <button id="faceT2IUpload" class="face-upload-slot" type="button">
+            <input id="faceT2IFileInput" type="file" accept="image/*" hidden>
+            <div id="faceT2IPreview" class="face-upload-preview">
+              <span>FACE</span><i>＋</i>
+            </div>
+            <div class="face-upload-copy">
+              <strong id="faceT2IFileName">指定人脸参考图</strong>
+              <small>建议面部占比较大、清晰、无遮挡</small>
+            </div>
+            <em id="faceT2IClear" class="slot-clear hidden">×</em>
+          </button>
+
+          <textarea id="faceT2IPromptInput" placeholder="描述人物、服装、姿态、场景、镜头、光线与整体视觉风格……"></textarea>
+
+          <div class="image-app-note">
+            <i></i>
+            <div>
+              <strong>指定人脸文生图V3 · Qwen / Krea2 双版本</strong>
+              <span>Node 209 的 true / false 对应关系文档未明确，因此暂以原始分支值显示。</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="output-panel glass">
+          <div class="panel-head output-head">
+            <div>
+              <span>IMAGE OUTPUT</span>
+              <h2>图片预览</h2>
+            </div>
+            <div class="output-head-actions">
+              <div class="status-pill">
+                <i id="faceT2IStatusDot" class="status-dot"></i>
+                <div><strong id="faceT2IStatusText">等待生成</strong><span id="faceT2ITaskMeta">READY</span></div>
+              </div>
+              <button id="faceT2IDownloadBtn" class="download-btn" type="button" disabled>
+                <span>下载</span><b>↓</b>
+              </button>
+            </div>
+          </div>
+
+          <div class="image-preview-shell">
+            <div id="faceT2IResultArea" class="image-preview-stage">
+              <div class="empty-state">
+                <div class="empty-mark">＋</div>
+                <strong>准备生成图片</strong>
+                <span>上传人脸参考图并输入提示词后开始生成。</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="image-control-panel face-control-panel glass">
+        <div class="image-control-copy">
+          <span>GENERATION CONTROL</span>
+          <h2>操作区</h2>
+          <small>RunningHub AI App · 2081918043782344705</small>
+        </div>
+
+        <label class="image-control-field">
+          <span>模型分支</span>
+          <select id="faceT2IModelBranch">
+            <option value="true" selected>true · API 默认</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+
+        <label class="image-control-field">
+          <span>比例</span>
+          <select id="faceT2IAspectRatio">
+            <option value="1:1">1:1</option>
+            <option value="3:4">3:4</option>
+            <option value="4:3">4:3</option>
+            <option value="2:3">2:3</option>
+            <option value="3:2">3:2</option>
+            <option value="9:16" selected>9:16</option>
+            <option value="16:9">16:9</option>
+          </select>
+        </label>
+
+        <label class="image-control-field">
+          <span>HD</span>
+          <select id="faceT2IHD">
+            <option value="false" selected>关闭</option>
+            <option value="true">开启</option>
+          </select>
+        </label>
+
+        <div class="image-workflow-state">
+          <i></i>
+          <span>Direct / ZIP · false</span>
+        </div>
+
+        <button id="faceT2IRunBtn" class="generate-btn image-generate-btn" type="button">
+          <span class="face-t2i-generate-label">开始生成</span><b>↗</b>
         </button>
       </section>
     </div>
