@@ -195,12 +195,13 @@ RH Studio 不是单一的 MinimaxH3 前端，也不是只服务于生视频。
 
 ### 6.2 输入上传
 
-媒体文件不能再次通过普通 Vercel Function 中转大文件。
+媒体上传必须避免由普通 Serverless Function 整体缓冲大文件。
 
 现有原则：
 
-- 优先使用 RunningHub 上传接口 / 当前已实现的上传 Rewrite。
-- 避免 Vercel Function request body 4.5MB 限制。
+- 优先使用 RunningHub 上传接口 / 当前已实现的 `/rh-upload` 流式代理。
+- Zeabur Node 服务通过同源流式代理转发上传；Vercel 继续保留 Rewrite 兼容。
+- 不把大文件转成 JSON / Base64 后再经过应用 API 中转。
 - 上传成功后，应使用 RunningHub 返回的真实文件标识提交任务。
 - 文件大小、格式限制应尽量在前端提前提示。
 
@@ -298,21 +299,33 @@ RH Studio 不是单一的 MinimaxH3 前端，也不是只服务于生视频。
 
 ---
 
-## 11. GitHub / Vercel 工作流
+## 11. GitHub / Zeabur 工作流
 
 当前生产流程：
 
 1. 直接修改 `susu177990-rgb/RH-studio`
 2. 使用 `main` 分支
-3. Push / Commit 后由 Vercel 自动部署 Production
-4. 修改完成后必须检查最终 Production Deployment
-5. 确认最终 commit 已处于 `READY`
-6. 必要时检查线上 HTML / JS / API 行为
-7. **未完成线上验证前，不得向用户宣称“已上线 / 已完成”**
+3. Zeabur 作为主部署平台，直接部署仓库根目录
+4. Node 启动入口：`server.js`
+5. 启动命令：`npm start`
+6. 端口必须使用 `process.env.PORT`
+7. `zbpack.json` 固定 `app_dir: "/"` 与 `start_command: "npm start"`
+8. 修改完成后必须检查 Zeabur 最新部署日志 / 健康检查 / 线上 HTML、JS 与 API 行为
+9. **未完成线上验证前，不得向用户宣称“已上线 / 已完成”**
 
-生产站点：
+Zeabur Node 服务必须同时承载：
 
-`https://rh-studio-eta.vercel.app`
+- 静态工作台：`/`
+- 生成记录：`/history`
+- `/api/rh/run`
+- `/api/rh/query`
+- `/api/rh/upload`
+- `/rh-upload`
+- `/rh-media/*`
+- `/rh-media-hk/*`
+- `/healthz`
+
+Vercel 配置继续保留作为备用兼容，但不再作为默认生产部署目标。
 
 ---
 
@@ -540,7 +553,6 @@ RH Studio 不是单一的 MinimaxH3 前端，也不是只服务于生视频。
   - Node 163 / `value` = `false`
   - Node 158 / `value` = `false`
 - 未上传的媒体节点统一按当前视频工作流约定提交 `None`。
-- 至少需要一张参考图才允许提交。
 - API Key 与运行实例统一使用全局设置。
 - 本应用 `type: "video"`，自动进入左侧“视频”分类。
 - 与 `minimax-h3` 使用完全独立的媒体 slot，禁止跨应用上传节点串用。

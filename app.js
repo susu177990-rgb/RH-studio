@@ -2631,12 +2631,6 @@ async function runMultiFastTask() {
     return;
   }
 
-  const imageSlots = Object.entries(MULTI_FAST_MEDIA).filter(([,config]) => config.kind === 'image').map(([slot]) => slot);
-  if (!imageSlots.some(slot => !!state.files[slot])) {
-    toast('请至少上传一张参考图','bad');
-    return;
-  }
-
   multiFastState.running = true;
   $('#multiFastRunBtn').disabled = true;
   $('.multi-fast-generate-label').textContent = '准备任务…';
