@@ -68,6 +68,11 @@ function toMediaUrl(url) {
   return url;
 }
 
+function isImageType(value) {
+  const type = String(value || '').toLowerCase();
+  return ['png','jpg','jpeg','webp','gif','avif'].includes(type) || type.includes('image');
+}
+
 function ratioValue(value) {
   const match = String(value || '').match(/^(\d+):(\d+)$/);
   if (!match) return '16 / 9';
@@ -140,17 +145,21 @@ function renderHistory() {
     const success = status === 'SUCCESS' && !!item.resultUrl;
     const mediaUrl = success ? toMediaUrl(item.resultUrl) : '';
     const type = String(item.outputType || 'mp4').replace(/[^a-z0-9]/gi,'').toLowerCase() || 'mp4';
-    const title = item.prompt ? esc(item.prompt) : '视频生成任务';
+    const title = item.prompt ? esc(item.prompt) : esc(item.appName || '生成任务');
     const ratio = esc(item.aspect || '—');
     const quality = esc(item.quality || '—');
     const duration = esc(item.duration || '—');
     const instance = esc(item.instance || '—');
     const taskId = esc(item.taskId || '');
     const time = esc(formatTime(item.createdAt));
+    const appName = esc(item.appName || 'RunningHub');
+    const appParam = item.appKey ? '&app=' + encodeURIComponent(item.appKey) : '';
 
     const media = success
       ? '<div class="history-media" style="aspect-ratio:' + ratioValue(item.aspect) + '">' +
-          '<video src="' + esc(mediaUrl) + '" controls playsinline preload="metadata"></video>' +
+          (isImageType(type)
+            ? '<img src="' + esc(mediaUrl) + '" alt="generated image">'
+            : '<video src="' + esc(mediaUrl) + '" controls playsinline preload="metadata"></video>') +
         '</div>'
       : '<div class="history-media history-media-empty" style="aspect-ratio:' + ratioValue(item.aspect) + '">' +
           '<div class="history-media-state ' + esc(status.toLowerCase()) + '">' +
@@ -168,7 +177,7 @@ function renderHistory() {
         media +
         '<div class="history-card-body">' +
           '<div class="history-card-head">' +
-            '<span>' + time + '</span>' +
+            '<span>' + time + ' · ' + appName + '</span>' +
             '<i class="history-status ' + esc(status.toLowerCase()) + '">' + esc(statusText(status)) + '</i>' +
           '</div>' +
           '<h3>' + title + '</h3>' +
@@ -180,7 +189,7 @@ function renderHistory() {
           '</div>' +
           '<div class="history-task">TASK · ' + taskId + '</div>' +
           '<div class="history-card-actions">' +
-            '<a class="history-open" href="/?task=' + encodeURIComponent(item.taskId || '') + '">查看</a>' +
+            '<a class="history-open" href="/?task=' + encodeURIComponent(item.taskId || '') + appParam + '">查看</a>' +
             download +
           '</div>' +
         '</div>' +
@@ -237,7 +246,7 @@ async function refreshActiveTasks() {
 $('#importHistoryTask').onclick = importTask;
 
 $('#historyList').addEventListener('error', e => {
-  if (e.target.tagName !== 'VIDEO') return;
+  if (!['VIDEO','IMG'].includes(e.target.tagName)) return;
   const media = e.target.closest('.history-media');
   if (!media) return;
   media.classList.add('history-media-broken');
