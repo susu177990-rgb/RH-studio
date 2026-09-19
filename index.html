@@ -216,6 +216,15 @@
             </label>
           </div>
 
+          <div class="duration-control">
+            <div class="duration-head">
+              <span>时长</span>
+              <b id="durationValue">10s</b>
+            </div>
+            <input id="durationRange" type="range" min="1" max="10" step="1" value="10">
+            <div class="duration-scale"><span>1s</span><span>10s</span></div>
+          </div>
+
           <div class="operation-foot">
             <div class="workflow-state"><i></i><span>已绑定 RunningHub 工作流</span></div>
             <button id="runBtn" class="generate-btn" type="button">
