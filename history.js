@@ -2,7 +2,8 @@ const $ = s => document.querySelector(s);
 
 const LS = {
   key: 'rhstudio.apiKey',
-  history: 'rhstudio.generationHistory'
+  history: 'rhstudio.generationHistory',
+  runtimeTasks: 'rhstudio.runtimeTasks.v2'
 };
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -287,6 +288,25 @@ function renderHistory() {
 }
 
 
+function removeRuntimeTaskByTaskId(taskId) {
+  const id = String(taskId || '').trim();
+  if (!id) return;
+
+  try {
+    const value = JSON.parse(localStorage.getItem(LS.runtimeTasks) || '{}');
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+
+    let changed = false;
+    for (const [appKey, snapshot] of Object.entries(value)) {
+      if (String(snapshot?.taskId || '') !== id) continue;
+      delete value[appKey];
+      changed = true;
+    }
+
+    if (changed) localStorage.setItem(LS.runtimeTasks, JSON.stringify(value));
+  } catch {}
+}
+
 function deleteHistoryItem(taskId) {
   const id = String(taskId || '').trim();
   if (!id) return;
@@ -296,6 +316,7 @@ function deleteHistoryItem(taskId) {
   if (next.length === items.length) return;
 
   saveHistory(next);
+  removeRuntimeTaskByTaskId(id);
   renderHistory();
   toast('记录已从本地缓存删除');
 }
@@ -308,6 +329,7 @@ function clearAllHistory() {
   if (!ok) return;
 
   localStorage.removeItem(LS.history);
+  localStorage.removeItem(LS.runtimeTasks);
   renderHistory();
   toast('生成记录缓存已清空');
 }
