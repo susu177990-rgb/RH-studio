@@ -72,18 +72,6 @@
 .clothes-last-result small{
   display:block;margin-top:5px;color:#665d55;font:700 6px ui-monospace,SFMono-Regular,Menlo,monospace
 }
-.persona-output-list{display:grid;gap:8px;margin-top:9px}
-.persona-output-list>div{
-  padding:9px 10px;border:1px solid rgba(255,255,255,.045);border-radius:11px;
-  background:rgba(0,0,0,.16)
-}
-.persona-output-list span{
-  display:block;color:#665d55;font:800 5.8px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.7px
-}
-.persona-output-list p{
-  margin:5px 0 0;color:#a99f95;font-size:7.2px;line-height:1.58;white-space:normal
-}
-
 @media(max-width:620px){
   .prompt-quick-btn{width:30px;padding:0;justify-content:center}
   .prompt-quick-btn span{display:none}
@@ -1214,38 +1202,6 @@
 
       <div class="prompt-template-note">
         <code>{{clothes}}</code>、<code>{{performance}}</code>、<code>{{action}}</code> 由同一个 Persona 联动生成。一次随机先确定这一轮的人设，再统一决定服装、表演状态、具体动作流和表情反应。
-      </div>
-
-      <div class="clothes-generator-card persona-generator-card">
-        <div class="clothes-generator-head">
-          <div>
-            <strong>Persona 联动随机引擎 · V2</strong>
-            <span>每次生成一个新的完整视频人格，并联动服装、Performance 与 Action。</span>
-          </div>
-          <b>3-WAY LINKED</b>
-        </div>
-
-        <div class="clothes-last-result">
-          <span>PERSONA</span>
-          <div>
-            <strong id="lastPersonaName">尚未生成 Persona</strong>
-          </div>
-        </div>
-
-        <div class="persona-output-list">
-          <div>
-            <span>CLOTHES</span>
-            <p id="lastPersonaClothes">—</p>
-          </div>
-          <div>
-            <span>PERFORMANCE</span>
-            <p id="lastPersonaPerformance">—</p>
-          </div>
-          <div>
-            <span>ACTION</span>
-            <p id="lastPersonaAction">—</p>
-          </div>
-        </div>
       </div>
 
       <textarea id="promptTemplateInput" class="prompt-template-editor" spellcheck="false" aria-label="视频快捷提示词模板"></textarea>
