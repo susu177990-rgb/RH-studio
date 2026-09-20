@@ -119,6 +119,7 @@ function syncArchiveButtons(items=getHistory()) {
 
   const latestButton = $('#downloadLatestBatch');
   const allButton = $('#downloadAllHistory');
+  const clearButton = $('#clearHistory');
 
   if (latestButton) {
     latestButton.disabled = latest.length === 0;
@@ -131,6 +132,11 @@ function syncArchiveButtons(items=getHistory()) {
   if (allButton) {
     allButton.disabled = all.length === 0;
     allButton.title = '全部可下载结果 ' + all.length + ' 个';
+  }
+
+  if (clearButton) {
+    clearButton.disabled = items.length === 0;
+    clearButton.title = items.length ? ('清空当前 ' + items.length + ' 条本地生成记录') : '暂无记录可清空';
   }
 }
 
@@ -256,7 +262,10 @@ function renderHistory() {
         '<div class="history-card-body">' +
           '<div class="history-card-head">' +
             '<span>' + time + ' · ' + appName + '</span>' +
-            '<i class="history-status ' + esc(status.toLowerCase()) + '">' + esc(statusText(status)) + '</i>' +
+            '<div class="history-card-head-actions">' +
+              '<i class="history-status ' + esc(status.toLowerCase()) + '">' + esc(statusText(status)) + '</i>' +
+              '<button class="history-delete" type="button" data-delete-task="' + taskId + '" aria-label="删除这条记录" title="删除这条本地记录">×</button>' +
+            '</div>' +
           '</div>' +
           '<h3>' + title + '</h3>' +
           '<div class="history-meta">' +
@@ -277,6 +286,31 @@ function renderHistory() {
   }).join('');
 }
 
+
+function deleteHistoryItem(taskId) {
+  const id = String(taskId || '').trim();
+  if (!id) return;
+
+  const items = getHistory();
+  const next = items.filter(item => String(item?.taskId || '') !== id);
+  if (next.length === items.length) return;
+
+  saveHistory(next);
+  renderHistory();
+  toast('记录已从本地缓存删除');
+}
+
+function clearAllHistory() {
+  const items = getHistory();
+  if (!items.length) return;
+
+  const ok = window.confirm('清空全部生成记录？\n\n只会删除当前浏览器里的记录缓存，不会删除 RunningHub 后台任务或已生成文件。');
+  if (!ok) return;
+
+  localStorage.removeItem(LS.history);
+  renderHistory();
+  toast('生成记录缓存已清空');
+}
 
 function archiveFilename(item, position, scope='all') {
   const ext = outputExtension(item);
@@ -430,7 +464,16 @@ async function refreshActiveTasks() {
 
 $('#downloadLatestBatch').onclick = downloadLatestBatchArchive;
 $('#downloadAllHistory').onclick = downloadAllHistoryArchive;
+$('#clearHistory').onclick = clearAllHistory;
 $('#importHistoryTask').onclick = importTask;
+
+$('#historyList').addEventListener('click', e => {
+  const button = e.target.closest('[data-delete-task]');
+  if (!button) return;
+  e.preventDefault();
+  e.stopPropagation();
+  deleteHistoryItem(button.dataset.deleteTask);
+});
 
 $('#historyList').addEventListener('error', e => {
   if (!['VIDEO','IMG'].includes(e.target.tagName)) return;
