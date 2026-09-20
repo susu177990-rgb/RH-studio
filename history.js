@@ -620,6 +620,22 @@ window.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeHistoryDetail();
 });
 
+$('#historyList').addEventListener('loadedmetadata', e => {
+  if (e.target.tagName !== 'VIDEO') return;
+  const video = e.target;
+  const card = video.closest('.history-card');
+  if (!card || !video.videoWidth || !video.videoHeight) return;
+  card.style.aspectRatio = video.videoWidth + ' / ' + video.videoHeight;
+}, true);
+
+$('#historyList').addEventListener('load', e => {
+  if (e.target.tagName !== 'IMG') return;
+  const img = e.target;
+  const card = img.closest('.history-card');
+  if (!card || !img.naturalWidth || !img.naturalHeight) return;
+  card.style.aspectRatio = img.naturalWidth + ' / ' + img.naturalHeight;
+}, true);
+
 $('#historyList').addEventListener('error', e => {
   if (!['VIDEO','IMG'].includes(e.target.tagName)) return;
 
