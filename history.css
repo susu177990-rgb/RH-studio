@@ -13,6 +13,13 @@ html,body.history-page-body{height:auto;min-height:100%;overflow:auto}
 .history-action-btn:disabled{opacity:.32;cursor:not-allowed}
 .history-archive-btn{border-color:rgba(255,179,92,.16);background:rgba(255,179,92,.035);color:#d0aa7c}
 .history-archive-btn b{color:var(--accent);font-size:10px}
+.history-clear-all-btn{
+  color:#a8837f;border-color:rgba(239,136,126,.12);background:rgba(239,136,126,.025)
+}
+.history-clear-all-btn:hover:not(:disabled){
+  color:#d39189;border-color:rgba(239,136,126,.24);background:rgba(239,136,126,.055)
+}
+.history-clear-all-btn b{font-size:11px;color:#c88780}
 .history-back b{color:var(--accent);font-size:10px}
 
 .history-main{width:min(1720px,100%);margin:12px auto 0}
@@ -49,7 +56,16 @@ html,body.history-page-body{height:auto;min-height:100%;overflow:auto}
   min-width:0;color:#625a52;font:700 5.5px ui-monospace,SFMono-Regular,Menlo,monospace;
   letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
+.history-card-head-actions{flex:0 0 auto;display:flex;align-items:center;gap:5px}
 .history-status{flex:0 0 auto;border:1px solid var(--line);border-radius:999px;padding:3px 6px;background:rgba(255,255,255,.018);color:#81776e;font-style:normal;font-size:5.5px}
+.history-delete{
+  width:22px;height:22px;border:1px solid rgba(239,136,126,.10);border-radius:7px;
+  background:rgba(239,136,126,.025);color:#7f6662;display:grid;place-items:center;
+  padding:0;cursor:pointer;font-size:11px;line-height:1;transition:.15s
+}
+.history-delete:hover{
+  color:#dc958c;border-color:rgba(239,136,126,.24);background:rgba(239,136,126,.07)
+}
 .history-status.success{color:#d2c198;border-color:rgba(215,197,158,.16);background:rgba(215,197,158,.04)}
 .history-status.running,.history-status.queued{color:#d6a469;border-color:rgba(255,179,92,.17);background:rgba(255,179,92,.04)}
 .history-status.failed{color:#d38d85;border-color:rgba(239,136,126,.16);background:rgba(239,136,126,.04)}
