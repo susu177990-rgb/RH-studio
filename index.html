@@ -557,7 +557,12 @@
               <span>PROMPT INPUT</span>
               <h2>提示词</h2>
             </div>
-            <b id="imagePromptCount">0</b>
+            <div class="prompt-head-actions">
+              <b id="imagePromptCount">0</b>
+              <button class="prompt-quick-btn image-prompt-quick-fill" data-image-prompt-target="#imagePromptInput" type="button">
+                <span>提示词生成</span><i>✦</i>
+              </button>
+            </div>
           </div>
           <textarea id="imagePromptInput" placeholder="描述画面主体、场景、构图、镜头、光线、材质、色彩和整体视觉风格……"></textarea>
           <div class="image-app-note">
@@ -643,7 +648,12 @@
               <span>PROMPT INPUT</span>
               <h2>提示词</h2>
             </div>
-            <b id="whiteMarblePromptCount">0</b>
+            <div class="prompt-head-actions">
+              <b id="whiteMarblePromptCount">0</b>
+              <button class="prompt-quick-btn image-prompt-quick-fill" data-image-prompt-target="#whiteMarblePromptInput" type="button">
+                <span>提示词生成</span><i>✦</i>
+              </button>
+            </div>
           </div>
           <textarea id="whiteMarblePromptInput" placeholder="描述人物、姿态、服装、场景、镜头、光线、材质与整体肖像风格……"></textarea>
           <div class="image-app-note">
@@ -726,7 +736,12 @@
               <span>PROMPT INPUT</span>
               <h2>提示词</h2>
             </div>
-            <b id="kq12PromptCount">0</b>
+            <div class="prompt-head-actions">
+              <b id="kq12PromptCount">0</b>
+              <button class="prompt-quick-btn image-prompt-quick-fill" data-image-prompt-target="#kq12PromptInput" type="button">
+                <span>提示词生成</span><i>✦</i>
+              </button>
+            </div>
           </div>
           <textarea id="kq12PromptInput" placeholder="描述人物、五官、妆造、服装、场景、镜头、光线、氛围与整体真实人像风格……"></textarea>
           <div class="image-app-note">
@@ -1252,7 +1267,7 @@
 <div id="toast" class="toast"></div>
 <script src="./app.js?v=persona-linked-v2"></script>
 
-<script src="./persona-random.js?v=persona-v2-4"></script>
+<script src="./persona-random.js?v=persona-image-v1"></script>
 
 </body>
 </html>
