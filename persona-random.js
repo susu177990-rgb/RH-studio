@@ -1159,6 +1159,117 @@
     document.body.style.overflow = 'hidden';
   }
 
+
+  const IMAGE_POSTURES = {
+    soft_daily_girlfriend:[
+      '自然站立，身体轻微偏向一侧，肩膀放松',
+      '双手自然放在身前，身体重心轻轻落在一侧',
+      '轻微侧身站立，视线自然看向镜头'
+    ],
+    playful_social:[
+      '身体轻微前倾，姿态轻快有镜头感',
+      '一条腿自然向前，站姿活泼但不过分摆拍',
+      '轻微侧身并保持灵动表情，整体更有社媒感'
+    ],
+    sweet_soft:[
+      '自然站立，姿态柔和，肩颈线条放松',
+      '轻微侧身，双手自然靠近身前，整体温柔',
+      '身体微微偏向一侧，保持柔和甜感'
+    ],
+    sweet_cool_spicy:[
+      '轻微侧身，身体线条利落，表情带一点冷甜反差',
+      '重心放在一侧，形成干净的不对称站姿',
+      '身体三分之二侧向镜头，眼神直接'
+    ],
+    light_mature_city:[
+      '自然轻微侧身，站姿利落，从容看向镜头',
+      '重心稳定落在一侧，身体线条清晰',
+      '身体三分之二侧身，肩背舒展，镜头感稳定'
+    ],
+    subtle_sexy_daily:[
+      '轻微侧身，腰胯重心自然变化，线条清晰但克制',
+      '身体形成自然S形曲线，直接看向镜头',
+      '重心放在一侧，肩颈与腰线自然舒展'
+    ],
+    cool_clean_minimal:[
+      '安静站立，身体略微侧转，直接看向镜头',
+      '极简直立姿态，肩膀自然偏向一侧',
+      '三分之二侧身，表情克制，眼神集中'
+    ],
+    gentle_elegant:[
+      '自然侧身站立，姿态柔和舒展',
+      '身体轻微偏向一侧，肩颈放松，整体安静',
+      '优雅直立，重心自然，表情温和'
+    ],
+    lazy_frenchish:[
+      '身体松弛地偏向一侧，重心自然下沉',
+      '轻微侧身，姿态慵懒，眼神松弛',
+      '一侧肩膀略低，身体保持不经意的松散感'
+    ],
+    refined_rich_daily:[
+      '站姿精致克制，身体轻微侧向镜头',
+      '双手自然靠近身前，肩颈舒展，整体干净',
+      '重心轻轻放在一侧，姿态有造型感但不夸张'
+    ],
+    sporty_sweet_spicy:[
+      '站姿轻快有弹性，一条腿自然向前',
+      '身体略微前倾，整体健康有活力',
+      '轻微侧身，重心灵活，眼神直接明亮'
+    ],
+    high_energy_creator:[
+      '站姿明确有镜头感，身体姿态变化感强',
+      '轻微前倾并直接看镜头，整体像社媒封面定格',
+      '重心落在一侧，形成清晰有记忆点的Pose'
+    ]
+  };
+
+  function imageExpressionText(persona) {
+    const map = {
+      soft_daily_girlfriend:'像刚注意到镜头一样自然浅笑，真实亲近',
+      playful_social:'表情俏皮灵动，带明显社媒镜头感',
+      sweet_soft:'温柔微笑，眼神柔和，甜感自然',
+      sweet_cool_spicy:'前一秒偏冷，嘴角带一点反差笑意',
+      light_mature_city:'稳定直视镜头，带很轻的半笑',
+      subtle_sexy_daily:'眼神从容直接，表情克制，带轻微半笑',
+      cool_clean_minimal:'表情清冷克制，眼神集中，只保留很淡的嘴角变化',
+      gentle_elegant:'温柔安静地看向镜头，笑意很轻',
+      lazy_frenchish:'眼神略松弛，带不经意的半笑',
+      refined_rich_daily:'浅笑克制，带一点精致矜持感',
+      sporty_sweet_spicy:'眼神明亮直接，表情轻快有活力',
+      high_energy_creator:'表情反馈明确，笑意自然，熟悉镜头但不夸张'
+    };
+    return map[persona.id] || '自然看向镜头，表情真实放松';
+  }
+
+  function generateImagePromptFromBundle(bundle) {
+    const persona = PERSONAS.find(item => item.id === bundle.personaId) || PERSONAS[0];
+    const rng = createRng(((bundle.seed * 1664525) + 1013904223) >>> 0 || 1);
+    const posturePool = IMAGE_POSTURES[persona.id] || ['自然站立，身体姿态放松'];
+    const posture = pick(rng,posturePool);
+    const expression = imageExpressionText(persona);
+
+    return [
+      '年轻成年东亚女性真人写实人像。',
+      '服装：' + bundle.clothes,
+      '人物' + posture + '，' + expression + '。',
+      '保持同一个真实人物身份与稳定五官比例，长黑发自然披散，精致但自然的日常妆容。',
+      '真实高端智能手机人像摄影质感，中近景到大腿景别，人物为画面主体，构图自然，轻微真实景深。',
+      '肤色自然通透并保留真实皮肤纹理，头发、服装与环境材质细节清晰，光线真实柔和，不过度磨皮，不过度电影化。'
+    ].join('');
+  }
+
+  function generateImagePromptBundle() {
+    const bundle = generateUniqueRandomBundle();
+    rememberBundle(bundle);
+    syncLastUI();
+
+    return {
+      ...bundle,
+      prompt:generateImagePromptFromBundle(bundle),
+      personaSeed:bundle.seed
+    };
+  }
+
   function finalPromptForBundle(template,bundle) {
     let value = template;
     if (value.includes(CLOTHES_PLACEHOLDER)) value = value.replace(CLOTHES_PLACEHOLDER,bundle.clothes);
@@ -1211,6 +1322,27 @@
     }
   }
 
+  document.querySelectorAll('.image-prompt-quick-fill').forEach(button => {
+    button.addEventListener('click',() => {
+      const target = $(button.dataset.imagePromptTarget || '');
+      if (!target) return;
+
+      try {
+        const result = generateImagePromptBundle();
+        target.value = result.prompt;
+        target.dispatchEvent(new Event('input',{bubbles:true}));
+        target.dispatchEvent(new Event('change',{bubbles:true}));
+        target.focus();
+
+        if (typeof toast === 'function') {
+          toast('图片提示词已生成 · ' + result.personaName,'good');
+        }
+      } catch (error) {
+        if (typeof toast === 'function') toast(error?.message || '图片提示词生成失败','bad');
+      }
+    });
+  });
+
   $('#openPromptSettings')?.addEventListener('click',openPromptSettings);
   $('#promptQuickFill')?.addEventListener('click',() => fillPrompt('#promptInput'));
   $('#multiFastPromptQuickFill')?.addEventListener('click',() => fillPrompt('#multiFastPromptInput'));
@@ -1229,6 +1361,12 @@
   });
 
   syncLastUI();
+
+  window.RHImagePromptGenerator = Object.freeze({
+    generateRandom() {
+      return generateImagePromptBundle();
+    }
+  });
 
   window.RHPromptGenerator = Object.freeze({
     generateRandom() {
