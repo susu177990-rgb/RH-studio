@@ -187,9 +187,19 @@ async function queryTask(taskId) {
   return data;
 }
 
+function compareHistoryNewestFirst(a,b) {
+  const createdDiff = Number(b?.createdAt || 0) - Number(a?.createdAt || 0);
+  if (createdDiff) return createdDiff;
+
+  const updatedDiff = Number(b?.updatedAt || 0) - Number(a?.updatedAt || 0);
+  if (updatedDiff) return updatedDiff;
+
+  return String(b?.taskId || '').localeCompare(String(a?.taskId || ''));
+}
+
 function renderHistory() {
   const list = $('#historyList');
-  const items = getHistory().sort((a,b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+  const items = [...getHistory()].sort(compareHistoryNewestFirst);
   $('#historyCount').textContent = String(items.length);
   syncArchiveButtons(items);
 
