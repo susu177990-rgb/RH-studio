@@ -45,6 +45,14 @@ html,body.history-page-body{height:auto;min-height:100%;overflow:auto}
   border-color:rgba(255,179,92,.20);
   box-shadow:0 16px 34px rgba(0,0,0,.30)
 }
+.history-card.is-hover-playing{
+  border-color:rgba(255,179,92,.28);
+  box-shadow:0 18px 40px rgba(0,0,0,.34)
+}
+.history-card.is-hover-playing .history-card-tools{
+  opacity:1;
+  transform:none
+}
 .history-card-media{
   position:absolute;
   inset:0;
