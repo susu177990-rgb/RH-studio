@@ -204,7 +204,61 @@ function compareHistoryNewestFirst(a,b) {
   return String(b?.taskId || '').localeCompare(String(a?.taskId || ''));
 }
 
+let activeHoverVideo = null;
+let hoverPlayTimer = null;
+
+function isHoverPlaybackAvailable() {
+  return !window.matchMedia('(hover: none), (pointer: coarse)').matches;
+}
+
+function cancelHoverPlayTimer() {
+  if (!hoverPlayTimer) return;
+  clearTimeout(hoverPlayTimer);
+  hoverPlayTimer = null;
+}
+
+function stopHistoryHoverVideo(reset=true) {
+  cancelHoverPlayTimer();
+
+  const video = activeHoverVideo;
+  activeHoverVideo = null;
+  if (!video) return;
+
+  try {
+    video.pause();
+    if (reset) video.currentTime = 0;
+  } catch {}
+
+  video.closest('.history-card')?.classList.remove('is-hover-playing');
+}
+
+function startHistoryHoverVideo(video) {
+  if (!video || !isHoverPlaybackAvailable()) return;
+  if (activeHoverVideo === video && !video.paused) return;
+
+  cancelHoverPlayTimer();
+
+  hoverPlayTimer = setTimeout(async () => {
+    hoverPlayTimer = null;
+    if (!video.isConnected) return;
+
+    if (activeHoverVideo && activeHoverVideo !== video) {
+      stopHistoryHoverVideo(true);
+    }
+
+    try {
+      video.muted = true;
+      video.playsInline = true;
+      video.currentTime = 0;
+      await video.play();
+      activeHoverVideo = video;
+      video.closest('.history-card')?.classList.add('is-hover-playing');
+    } catch {}
+  },120);
+}
+
 function renderHistory() {
+  stopHistoryHoverVideo(true);
   const list = $('#historyList');
   const items = [...getHistory()].sort(compareHistoryNewestFirst);
   $('#historyCount').textContent = String(items.length);
@@ -289,6 +343,7 @@ function detailMediaHtml(item) {
 }
 
 function openHistoryDetail(taskId) {
+  stopHistoryHoverVideo(true);
   const item = getHistoryItem(taskId);
   if (!item) {
     toast('这条记录已经不存在','bad');
@@ -412,6 +467,7 @@ function deleteHistoryItem(taskId) {
   const next = items.filter(item => String(item?.taskId || '') !== id);
   if (next.length === items.length) return;
 
+  stopHistoryHoverVideo(true);
   saveHistory(next);
   removeRuntimeTaskByTaskId(id);
   if (!$('#historyDetailOverlay').classList.contains('hidden') &&
@@ -429,6 +485,7 @@ function clearAllHistory() {
   const ok = window.confirm('清空全部生成记录？\n\n只会删除当前浏览器里的记录缓存，不会删除 RunningHub 后台任务或已生成文件。');
   if (!ok) return;
 
+  stopHistoryHoverVideo(true);
   localStorage.removeItem(LS.history);
   localStorage.removeItem(LS.runtimeTasks);
   closeHistoryDetail();
@@ -618,6 +675,43 @@ $('#historyDetailDownload').addEventListener('click', e => {
 
 window.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeHistoryDetail();
+});
+
+$('#historyList').addEventListener('pointerover', e => {
+  if (!isHoverPlaybackAvailable()) return;
+
+  const card = e.target.closest('.history-card');
+  if (!card) return;
+
+  const from = e.relatedTarget;
+  if (from && card.contains(from)) return;
+
+  const video = card.querySelector('.history-card-media video');
+  if (!video) return;
+
+  startHistoryHoverVideo(video);
+});
+
+$('#historyList').addEventListener('pointerout', e => {
+  if (!isHoverPlaybackAvailable()) return;
+
+  const card = e.target.closest('.history-card');
+  if (!card) return;
+
+  const to = e.relatedTarget;
+  if (to && card.contains(to)) return;
+
+  const video = card.querySelector('.history-card-media video');
+  if (!video) return;
+
+  cancelHoverPlayTimer();
+  if (video === activeHoverVideo) stopHistoryHoverVideo(true);
+});
+
+window.addEventListener('blur', () => stopHistoryHoverVideo(true));
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopHistoryHoverVideo(true);
 });
 
 $('#historyList').addEventListener('loadedmetadata', e => {
