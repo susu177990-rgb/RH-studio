@@ -6,7 +6,7 @@
 <title>生成记录 · RH Studio</title>
 <meta name="description" content="RH Studio generation history" />
 <link rel="stylesheet" href="./style.css">
-<link rel="stylesheet" href="./history.css?v=history-delete-v2">
+<link rel="stylesheet" href="./history.css?v=media-cards-v1">
 </head>
 <body class="history-page-body">
 <div class="ambient ambient-a"></div>
@@ -49,7 +49,65 @@
   </main>
 </div>
 
+
+<div id="historyDetailOverlay" class="history-detail-overlay hidden" aria-hidden="true">
+  <button class="history-detail-backdrop" type="button" data-detail-close aria-label="关闭详情"></button>
+  <section class="history-detail-modal glass" role="dialog" aria-modal="true" aria-labelledby="historyDetailTitle">
+    <div class="history-detail-head">
+      <div>
+        <span>GENERATION DETAIL</span>
+        <strong id="historyDetailTitle">生成详情</strong>
+      </div>
+      <button class="history-detail-close" type="button" data-detail-close aria-label="关闭">×</button>
+    </div>
+
+    <div class="history-detail-layout">
+      <div id="historyDetailMedia" class="history-detail-media"></div>
+
+      <aside class="history-detail-info">
+        <div class="history-detail-summary">
+          <span id="historyDetailTime">—</span>
+          <strong id="historyDetailApp">—</strong>
+          <i id="historyDetailStatus" class="history-status">—</i>
+        </div>
+
+        <div class="history-detail-section">
+          <span>PROMPT</span>
+          <p id="historyDetailPrompt">—</p>
+        </div>
+
+        <div class="history-detail-meta-grid">
+          <div><span>比例</span><strong id="historyDetailAspect">—</strong></div>
+          <div><span>清晰度</span><strong id="historyDetailQuality">—</strong></div>
+          <div><span>时长</span><strong id="historyDetailDuration">—</strong></div>
+          <div><span>实例</span><strong id="historyDetailInstance">—</strong></div>
+        </div>
+
+        <div id="historyDetailBatchWrap" class="history-detail-section compact hidden">
+          <span>BATCH</span>
+          <p id="historyDetailBatch">—</p>
+        </div>
+
+        <div id="historyDetailPersonaWrap" class="history-detail-section compact hidden">
+          <span>PERSONA</span>
+          <p id="historyDetailPersona">—</p>
+        </div>
+
+        <div class="history-detail-section compact">
+          <span>TASK</span>
+          <code id="historyDetailTask">—</code>
+        </div>
+
+        <div class="history-detail-actions">
+          <a id="historyDetailDownload" class="history-detail-download disabled" href="#" download>下载文件 <b>↓</b></a>
+          <a id="historyDetailOpen" class="history-detail-open" href="/">回到工作台 <b>↗</b></a>
+        </div>
+      </aside>
+    </div>
+  </section>
+</div>
+
 <div id="toast" class="toast"></div>
-<script src="./history.js?v=history-delete-v2"></script>
+<script src="./history.js?v=media-cards-v1"></script>
 </body>
 </html>
