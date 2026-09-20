@@ -6,7 +6,7 @@
 <title>生成记录 · RH Studio</title>
 <meta name="description" content="RH Studio generation history" />
 <link rel="stylesheet" href="./style.css">
-<link rel="stylesheet" href="./history.css?v=compact-order-v1">
+<link rel="stylesheet" href="./history.css?v=history-delete-v1">
 </head>
 <body class="history-page-body">
 <div class="ambient ambient-a"></div>
@@ -31,6 +31,9 @@
       <button id="downloadAllHistory" class="history-action-btn history-archive-btn" type="button" disabled>
         全部记录打包 <b>↓</b>
       </button>
+      <button id="clearHistory" class="history-action-btn history-clear-all-btn" type="button" disabled>
+        清空记录 <b>×</b>
+      </button>
       <button id="importHistoryTask" class="history-action-btn" type="button">导入 Task</button>
       <a class="history-back" href="/">返回工作台 <b>↙</b></a>
     </div>
@@ -47,6 +50,6 @@
 </div>
 
 <div id="toast" class="toast"></div>
-<script src="./history.js?v=compact-order-v1"></script>
+<script src="./history.js?v=history-delete-v1"></script>
 </body>
 </html>
