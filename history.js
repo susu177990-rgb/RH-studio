@@ -224,69 +224,166 @@ function renderHistory() {
     const success = status === 'SUCCESS' && !!item.resultUrl;
     const mediaUrl = success ? toMediaUrl(item.resultUrl) : '';
     const type = String(item.outputType || 'mp4').replace(/[^a-z0-9]/gi,'').toLowerCase() || 'mp4';
-    const title = item.prompt ? esc(item.prompt) : esc(item.appName || '生成任务');
-    const ratio = esc(item.aspect || '—');
-    const quality = esc(item.quality || '—');
-    const duration = esc(item.duration || '—');
-    const instance = esc(item.instance || '—');
     const taskId = esc(item.taskId || '');
-    const time = esc(formatTime(item.createdAt));
-    const appName = esc(item.appKey === 'image-2mp' ? '超强文生图V3.0 基础版' : (item.appName || 'RunningHub'));
+    const ratio = ratioValue(item.aspect);
     const appParam = item.appKey ? '&app=' + encodeURIComponent(item.appKey) : '';
-    const batchTag = item.batchId
-      ? '<div class="history-batch-tag">BATCH · ' +
-          esc(String(item.batchIndex || '—')) + ' / ' +
-          esc(String(item.batchTotal || '—')) +
-        '</div>'
-      : '';
 
-    const media = success
-      ? '<div class="history-media" style="aspect-ratio:' + ratioValue(item.aspect) + '">' +
-          (isImageType(type)
-            ? historyImageTag(item.resultUrl)
-            : '<video src="' + esc(mediaUrl) + '" controls playsinline preload="metadata"></video>') +
-        '</div>'
-      : '<div class="history-media history-media-empty" style="aspect-ratio:' + ratioValue(item.aspect) + '">' +
-          '<div class="history-media-state ' + esc(status.toLowerCase()) + '">' +
-            (status === 'RUNNING' || status === 'QUEUED' ? '<i></i>' : '') +
-            '<strong>' + esc(statusText(status)) + '</strong>' +
-          '</div>' +
+    let media;
+    if (success) {
+      media =
+        isImageType(type)
+          ? historyImageTag(item.resultUrl)
+          : '<video src="' + esc(mediaUrl) + '" muted playsinline preload="metadata"></video>';
+    } else {
+      media =
+        '<div class="history-media-state ' + esc(status.toLowerCase()) + '">' +
+          (status === 'RUNNING' || status === 'QUEUED' ? '<i></i>' : '') +
+          '<strong>' + esc(statusText(status)) + '</strong>' +
         '</div>';
+    }
 
-    const download = success
-      ? '<a class="history-download" href="' + esc(mediaUrl) + '" download="rh-studio-' + taskId + '.' + esc(type) + '">下载 <b>↓</b></a>'
-      : '<button class="history-download disabled" type="button" disabled>暂无文件 <b>↓</b></button>';
+    const downloadButton = success
+      ? '<a class="history-card-tool" href="' + esc(mediaUrl) + '" download="rh-studio-' + taskId + '.' + esc(type) + '" aria-label="下载" title="下载">↓</a>'
+      : '<button class="history-card-tool disabled" type="button" disabled aria-label="暂无文件" title="暂无文件">↓</button>';
 
     return (
-      '<article class="history-card">' +
-        media +
-        '<div class="history-card-body">' +
-          '<div class="history-card-head">' +
-            '<span>' + time + ' · ' + appName + '</span>' +
-            '<div class="history-card-head-actions">' +
-              '<i class="history-status ' + esc(status.toLowerCase()) + '">' + esc(statusText(status)) + '</i>' +
-              '<button class="history-delete" type="button" data-delete-task="' + taskId + '" aria-label="删除这条记录" title="删除这条本地记录">×</button>' +
-            '</div>' +
-          '</div>' +
-          '<h3>' + title + '</h3>' +
-          '<div class="history-meta">' +
-            '<span>' + ratio + '</span>' +
-            '<span>' + quality + '</span>' +
-            '<span>' + duration + '</span>' +
-            '<span>' + instance + '</span>' +
-          '</div>' +
-          batchTag +
-          '<div class="history-task">TASK · ' + taskId + '</div>' +
-          '<div class="history-card-actions">' +
-            '<a class="history-open" href="/?task=' + encodeURIComponent(item.taskId || '') + appParam + '">查看</a>' +
-            download +
-          '</div>' +
+      '<article class="history-card" data-history-task="' + taskId + '" style="aspect-ratio:' + ratio + '">' +
+        '<div class="history-card-media">' + media + '</div>' +
+        '<div class="history-card-tools">' +
+          '<button class="history-card-tool history-detail-trigger" type="button" data-detail-task="' + taskId + '" aria-label="详情" title="详情">详情</button>' +
+          downloadButton +
+          '<button class="history-card-tool history-delete" type="button" data-delete-task="' + taskId + '" aria-label="删除" title="删除这条本地记录">×</button>' +
         '</div>' +
       '</article>'
     );
   }).join('');
 }
 
+function getHistoryItem(taskId) {
+  const id = String(taskId || '').trim();
+  return getHistory().find(item => String(item?.taskId || '') === id) || null;
+}
+
+function detailMediaHtml(item) {
+  const status = String(item?.status || 'RUNNING').toUpperCase();
+  const success = status === 'SUCCESS' && !!item?.resultUrl;
+
+  if (!success) {
+    return (
+      '<div class="history-detail-state ' + esc(status.toLowerCase()) + '">' +
+        (status === 'RUNNING' || status === 'QUEUED' ? '<i></i>' : '') +
+        '<strong>' + esc(statusText(status)) + '</strong>' +
+        (item?.errorMessage ? '<span>' + esc(item.errorMessage) + '</span>' : '') +
+      '</div>'
+    );
+  }
+
+  const type = String(item.outputType || 'mp4').replace(/[^a-z0-9]/gi,'').toLowerCase() || 'mp4';
+  const url = toMediaUrl(item.resultUrl);
+
+  if (isImageType(type)) {
+    return historyImageTag(item.resultUrl);
+  }
+
+  return '<video src="' + esc(url) + '" controls playsinline preload="metadata"></video>';
+}
+
+function openHistoryDetail(taskId) {
+  const item = getHistoryItem(taskId);
+  if (!item) {
+    toast('这条记录已经不存在','bad');
+    return;
+  }
+
+  const overlay = $('#historyDetailOverlay');
+  const status = String(item.status || 'RUNNING').toUpperCase();
+  const type = String(item.outputType || 'mp4').replace(/[^a-z0-9]/gi,'').toLowerCase() || 'mp4';
+  const success = status === 'SUCCESS' && !!item.resultUrl;
+  const appName = item.appKey === 'image-2mp'
+    ? '超强文生图V3.0 基础版'
+    : (item.appName || 'RunningHub');
+
+  $('#historyDetailMedia').innerHTML = detailMediaHtml(item);
+  $('#historyDetailTime').textContent = formatTime(item.createdAt) || '—';
+  $('#historyDetailApp').textContent = appName;
+  $('#historyDetailStatus').textContent = statusText(status);
+  $('#historyDetailStatus').className = 'history-status ' + status.toLowerCase();
+
+  $('#historyDetailPrompt').textContent = item.prompt || '—';
+  $('#historyDetailAspect').textContent = item.aspect || '—';
+  $('#historyDetailQuality').textContent = item.quality || '—';
+  $('#historyDetailDuration').textContent = item.duration || '—';
+  $('#historyDetailInstance').textContent = item.instance || '—';
+  $('#historyDetailTask').textContent = item.taskId || '—';
+
+  const batchWrap = $('#historyDetailBatchWrap');
+  if (item.batchId) {
+    batchWrap.classList.remove('hidden');
+    $('#historyDetailBatch').textContent =
+      (item.batchIndex ? (item.batchIndex + ' / ' + (item.batchTotal || '—') + ' · ') : '') +
+      item.batchId;
+  } else {
+    batchWrap.classList.add('hidden');
+  }
+
+  const personaWrap = $('#historyDetailPersonaWrap');
+  if (item.personaName || item.personaId || item.personaSeed) {
+    personaWrap.classList.remove('hidden');
+    $('#historyDetailPersona').textContent =
+      [item.personaName || item.personaId, item.arc ? ('Arc ' + item.arc) : '']
+        .filter(Boolean)
+        .join(' · ');
+  } else {
+    personaWrap.classList.add('hidden');
+  }
+
+  const download = $('#historyDetailDownload');
+  if (success) {
+    download.classList.remove('disabled');
+    download.href = toMediaUrl(item.resultUrl);
+    download.setAttribute('download','rh-studio-' + (item.taskId || 'output') + '.' + type);
+    download.removeAttribute('aria-disabled');
+  } else {
+    download.classList.add('disabled');
+    download.href = '#';
+    download.removeAttribute('download');
+    download.setAttribute('aria-disabled','true');
+  }
+
+  const appParam = item.appKey ? '&app=' + encodeURIComponent(item.appKey) : '';
+  $('#historyDetailOpen').href = '/?task=' + encodeURIComponent(item.taskId || '') + appParam;
+
+  bindHistoryMediaFallbacks($('#historyDetailMedia'));
+
+  overlay.classList.remove('hidden');
+  overlay.setAttribute('aria-hidden','false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeHistoryDetail() {
+  const overlay = $('#historyDetailOverlay');
+  if (!overlay || overlay.classList.contains('hidden')) return;
+
+  const video = $('#historyDetailMedia video');
+  if (video) video.pause();
+
+  overlay.classList.add('hidden');
+  overlay.setAttribute('aria-hidden','true');
+  $('#historyDetailMedia').innerHTML = '';
+  document.body.style.overflow = '';
+}
+
+function bindHistoryMediaFallbacks(root) {
+  if (!root) return;
+
+  root.querySelectorAll('img[data-fallback-src]').forEach(img => {
+    img.addEventListener('error', () => {
+      if (img.dataset.fallbackTried || !img.dataset.fallbackSrc) return;
+      img.dataset.fallbackTried = '1';
+      img.src = img.dataset.fallbackSrc;
+    }, {once:true});
+  });
+}
 
 function removeRuntimeTaskByTaskId(taskId) {
   const id = String(taskId || '').trim();
@@ -317,6 +414,10 @@ function deleteHistoryItem(taskId) {
 
   saveHistory(next);
   removeRuntimeTaskByTaskId(id);
+  if (!$('#historyDetailOverlay').classList.contains('hidden') &&
+      $('#historyDetailTask').textContent === id) {
+    closeHistoryDetail();
+  }
   renderHistory();
   toast('记录已从本地缓存删除');
 }
@@ -330,6 +431,7 @@ function clearAllHistory() {
 
   localStorage.removeItem(LS.history);
   localStorage.removeItem(LS.runtimeTasks);
+  closeHistoryDetail();
   renderHistory();
   toast('生成记录缓存已清空');
 }
@@ -490,11 +592,32 @@ $('#clearHistory').onclick = clearAllHistory;
 $('#importHistoryTask').onclick = importTask;
 
 $('#historyList').addEventListener('click', e => {
-  const button = e.target.closest('[data-delete-task]');
-  if (!button) return;
-  e.preventDefault();
-  e.stopPropagation();
-  deleteHistoryItem(button.dataset.deleteTask);
+  const detailButton = e.target.closest('[data-detail-task]');
+  if (detailButton) {
+    e.preventDefault();
+    e.stopPropagation();
+    openHistoryDetail(detailButton.dataset.detailTask);
+    return;
+  }
+
+  const deleteButton = e.target.closest('[data-delete-task]');
+  if (deleteButton) {
+    e.preventDefault();
+    e.stopPropagation();
+    deleteHistoryItem(deleteButton.dataset.deleteTask);
+  }
+});
+
+document.querySelectorAll('[data-detail-close]').forEach(button => {
+  button.addEventListener('click', closeHistoryDetail);
+});
+
+$('#historyDetailDownload').addEventListener('click', e => {
+  if ($('#historyDetailDownload').classList.contains('disabled')) e.preventDefault();
+});
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeHistoryDetail();
 });
 
 $('#historyList').addEventListener('error', e => {
@@ -506,7 +629,7 @@ $('#historyList').addEventListener('error', e => {
     return;
   }
 
-  const media = e.target.closest('.history-media');
+  const media = e.target.closest('.history-card-media');
   if (!media) return;
   media.classList.add('history-media-broken');
 }, true);
