@@ -42,6 +42,14 @@ const APPS = {
     title: '去AI感真实皮肤高清放大',
     type: 'image'
   },
+  'qwen-image-2-1-multi-edit': {
+    key: 'qwen-image-2-1-multi-edit',
+    appId: '2101915284503654402',
+    name: 'Qwen Image 2.1 多图编辑',
+    subtitle: 'Multi Image Edit',
+    title: 'Qwen Image 2.1 多图编辑',
+    type: 'image'
+  },
   'minimax-h3-multi-fast': {
     key: 'minimax-h3-multi-fast',
     appId: '2086022574387339266',
@@ -58,6 +66,7 @@ const APP_KEYS = {
   whiteMarble: 'krea2-white-marble',
   kq12Portrait: 'kq12-portrait',
   skinUpscale: 'skin-upscale',
+  qwenMultiEdit: 'qwen-image-2-1-multi-edit',
   multiFast: 'minimax-h3-multi-fast'
 };
 
@@ -80,6 +89,8 @@ const LS = {
   kq12Prompt: 'rhstudio.kq12.prompt',
   multiFastPrompt: 'rhstudio.multiFast.prompt',
   multiFastAspect: 'rhstudio.multiFast.aspect',
+  qwenMultiEditPrompt: 'rhstudio.qwenImage21MultiEdit.prompt',
+  qwenMultiEditAspect: 'rhstudio.qwenImage21MultiEdit.aspect',
   appFilter: 'rhstudio.appFilter',
   inst: 'rhstudio.instanceType',
   history: 'rhstudio.generationHistory',
@@ -109,6 +120,16 @@ const MULTI_FAST_MEDIA = {
   mfastAudio144: { nodeId:'144', fieldName:'audio', kind:'audio', label:'音频 1' },
   mfastAudio160: { nodeId:'160', fieldName:'audio', kind:'audio', label:'音频 2' },
   mfastVideo164: { nodeId:'164', fieldName:'video', kind:'video', label:'参考视频', subtitle:'可选视频参考' }
+};
+
+
+const QWEN_MULTI_EDIT_MEDIA = {
+  qwenImg420: { nodeId:'420', fieldName:'image', kind:'image', label:'参考图 1', order:1 },
+  qwenImg432: { nodeId:'432', fieldName:'image', kind:'image', label:'参考图 2', order:2 },
+  qwenImg433: { nodeId:'433', fieldName:'image', kind:'image', label:'参考图 3', order:3 },
+  qwenImg436: { nodeId:'436', fieldName:'image', kind:'image', label:'参考图 4', order:4 },
+  qwenImg435: { nodeId:'435', fieldName:'image', kind:'image', label:'参考图 5', order:5 },
+  qwenImg434: { nodeId:'434', fieldName:'image', kind:'image', label:'参考图 6', order:6 }
 };
 
 
@@ -192,6 +213,15 @@ const skinUpscaleState = {
   inputObjectUrl: ''
 };
 
+const qwenMultiEditState = {
+  task: null,
+  poll: null,
+  running: false,
+  outputUrl: '',
+  outputSourceUrl: '',
+  outputType: ''
+};
+
 const multiFastState = {
   task: null,
   poll: null,
@@ -273,6 +303,7 @@ function setActiveApp(key, persist=true) {
   $('#workspaceWhiteMarble').classList.toggle('hidden', key !== APP_KEYS.whiteMarble);
   $('#workspaceKQ12').classList.toggle('hidden', key !== APP_KEYS.kq12Portrait);
   $('#workspaceSkinUpscale').classList.toggle('hidden', key !== APP_KEYS.skinUpscale);
+  $('#workspaceQwenMultiEdit').classList.toggle('hidden', key !== APP_KEYS.qwenMultiEdit);
   $('#workspaceMultiFast').classList.toggle('hidden', key !== APP_KEYS.multiFast);
 
   const app = APPS[key];
@@ -366,6 +397,11 @@ function persistKQ12Config() {
   localStorage.setItem(LS.kq12Prompt, $('#kq12PromptInput').value);
 }
 
+function persistQwenMultiEditConfig() {
+  localStorage.setItem(LS.qwenMultiEditPrompt, $('#qwenMultiEditPromptInput').value);
+  localStorage.setItem(LS.qwenMultiEditAspect, $('#qwenMultiEditAspectRatio').value);
+}
+
 function persistMultiFastConfig() {
   localStorage.setItem(LS.multiFastPrompt, $('#multiFastPromptInput').value);
   localStorage.setItem(LS.multiFastAspect, $('#multiFastAspectRatio').value);
@@ -396,6 +432,8 @@ function loadConfig() {
   $('#whiteMarbleHeight').value = localStorage.getItem(LS.whiteMarbleHeight) || '1920';
   $('#whiteMarbleSeed').value = localStorage.getItem(LS.whiteMarbleSeed) || '527633149753192';
   $('#kq12PromptInput').value = localStorage.getItem(LS.kq12Prompt) || '';
+  $('#qwenMultiEditPromptInput').value = localStorage.getItem(LS.qwenMultiEditPrompt) || '';
+  $('#qwenMultiEditAspectRatio').value = localStorage.getItem(LS.qwenMultiEditAspect) || '9:16';
   $('#multiFastPromptInput').value = localStorage.getItem(LS.multiFastPrompt) || '';
   $('#multiFastAspectRatio').value = localStorage.getItem(LS.multiFastAspect) || '9:16 (Portrait Widescreen)';
   state.appFilter = localStorage.getItem(LS.appFilter) || 'all';
@@ -406,6 +444,7 @@ function loadConfig() {
   updateImagePromptCount();
   updateWhiteMarblePromptCount();
   updateKQ12PromptCount();
+  updateQwenMultiEditPromptCount();
   updateMultiFastPromptCount();
 }
 
@@ -440,6 +479,10 @@ function updateWhiteMarblePromptCount() {
 
 function updateKQ12PromptCount() {
   $('#kq12PromptCount').textContent = String($('#kq12PromptInput').value.length);
+}
+
+function updateQwenMultiEditPromptCount() {
+  $('#qwenMultiEditPromptCount').textContent = String($('#qwenMultiEditPromptInput').value.length);
 }
 
 function updateMultiFastPromptCount() {
@@ -487,6 +530,15 @@ $('#kq12PromptInput').addEventListener('input', () => {
   updateKQ12PromptCount();
 });
 $('#kq12PromptInput').addEventListener('change', persistKQ12Config);
+
+['qwenMultiEditPromptInput','qwenMultiEditAspectRatio'].forEach(id => {
+  const el = $('#' + id);
+  el.addEventListener('input', () => {
+    persistQwenMultiEditConfig();
+    if (id === 'qwenMultiEditPromptInput') updateQwenMultiEditPromptCount();
+  });
+  el.addEventListener('change', persistQwenMultiEditConfig);
+});
 
 ['multiFastPromptInput','multiFastAspectRatio'].forEach(id => {
   const el = $('#' + id);
@@ -645,6 +697,13 @@ function runtimeViews() {
       renderSuccess:renderSkinUpscaleSuccess,
       renderFailed:renderSkinUpscaleFailed,
       query:querySkinUpscaleTask
+    },
+    [APP_KEYS.qwenMultiEdit]: {
+      state:qwenMultiEditState,
+      renderLoading:renderQwenMultiEditLoading,
+      renderSuccess:renderQwenMultiEditSuccess,
+      renderFailed:renderQwenMultiEditFailed,
+      query:queryQwenMultiEditTask
     },
     [APP_KEYS.multiFast]: {
       state:multiFastState,
@@ -1147,7 +1206,7 @@ function setFile(slot, file) {
 }
 
 function renderFileSlot(slot) {
-  const config = MEDIA[slot] || MULTI_FAST_MEDIA[slot];
+  const config = MEDIA[slot] || MULTI_FAST_MEDIA[slot] || QWEN_MULTI_EDIT_MEDIA[slot];
   if (!config) return;
   const file = state.files[slot];
   const el = $('.upload-slot[data-slot="' + slot + '"]');
@@ -2592,6 +2651,224 @@ async function querySkinUpscaleTask(taskId) {
   }
 }
 
+function setQwenMultiEditStatus(status, meta='') {
+  const names = {
+    IDLE:'等待生成',
+    UPLOADING:'上传参考图',
+    SUBMITTING:'提交任务',
+    QUEUED:'排队中',
+    RUNNING:'生成中',
+    SUCCESS:'生成完成',
+    FAILED:'生成失败'
+  };
+  statusClass($('#qwenMultiEditStatusDot'), status);
+  $('#qwenMultiEditStatusText').textContent = names[status] || status;
+  $('#qwenMultiEditTaskMeta').textContent = meta || 'READY';
+}
+
+function setQwenMultiEditDownload(url='', type='') {
+  qwenMultiEditState.outputSourceUrl = url || '';
+  qwenMultiEditState.outputUrl = toMediaUrl(url || '');
+  qwenMultiEditState.outputType = type || '';
+  $('#qwenMultiEditDownloadBtn').disabled = !qwenMultiEditState.outputUrl;
+}
+
+function renderQwenMultiEditIdle() {
+  setQwenMultiEditStatus('IDLE','READY');
+  setQwenMultiEditDownload();
+  $('#qwenMultiEditResultArea').innerHTML =
+    '<div class="empty-state">' +
+      '<div class="empty-mark">＋</div>' +
+      '<strong>准备编辑图片</strong>' +
+      '<span>上传参考图并输入编辑指令，结果会显示在这里。</span>' +
+    '</div>';
+}
+
+function renderQwenMultiEditLoading(status, taskId) {
+  setQwenMultiEditStatus(status, taskId ? ('TASK · ' + taskId) : 'PROCESSING');
+  setQwenMultiEditDownload();
+  $('#qwenMultiEditResultArea').innerHTML =
+    '<div class="loading-state">' +
+      '<div class="loading-mark"></div>' +
+      '<strong>' + (status === 'QUEUED' ? '任务正在排队' : status === 'UPLOADING' ? '正在上传参考图' : '图片正在生成') + '</strong>' +
+      '<span>' + (status === 'UPLOADING' ? '上传完成后会自动提交任务。' : '状态每 3 秒自动刷新。') + '</span>' +
+    '</div>';
+}
+
+function renderQwenMultiEditSuccess(task) {
+  const results = Array.isArray(task?.results) ? task.results : [];
+  const images = results.filter(isImage);
+  const primary = images[0] || results[0];
+
+  setQwenMultiEditStatus('SUCCESS', task?.taskId ? ('TASK · ' + task.taskId) : 'DONE');
+
+  if (!primary) {
+    setQwenMultiEditDownload();
+    $('#qwenMultiEditResultArea').innerHTML =
+      '<div class="empty-state"><div class="empty-mark">✓</div><strong>任务完成</strong><span>没有返回可预览图片。</span></div>';
+    return;
+  }
+
+  const url = primary.url || '';
+  const type = String(primary.outputType || 'png').toLowerCase();
+  setQwenMultiEditDownload(url, type);
+
+  if (images.length > 1) {
+    $('#qwenMultiEditResultArea').innerHTML =
+      '<div class="image-result-grid">' +
+        images.map(item => generatedImageTag(item.url || '')).join('') +
+      '</div>';
+    bindGeneratedImageFallbacks($('#qwenMultiEditResultArea'));
+  } else if (url) {
+    $('#qwenMultiEditResultArea').innerHTML = generatedImageTag(url);
+    bindGeneratedImageFallbacks($('#qwenMultiEditResultArea'));
+  } else if (primary.text) {
+    $('#qwenMultiEditResultArea').innerHTML = '<div class="file-state"><strong>' + esc(primary.text) + '</strong></div>';
+  }
+}
+
+function renderQwenMultiEditFailed(task, message) {
+  setQwenMultiEditStatus('FAILED', task?.taskId ? ('TASK · ' + task.taskId) : 'ERROR');
+  setQwenMultiEditDownload();
+  $('#qwenMultiEditResultArea').innerHTML = failureHtml(task, message);
+}
+
+function getQwenMultiEditNodes(prompt, uploadValues) {
+  const nodes = [];
+
+  for (const [slot,config] of Object.entries(QWEN_MULTI_EDIT_MEDIA)) {
+    nodes.push({
+      nodeId:config.nodeId,
+      fieldName:config.fieldName,
+      fieldValue:uploadValues[slot] || 'None',
+      description:null
+    });
+  }
+
+  nodes.push(
+    {nodeId:'479',fieldName:'aspect_ratio',fieldValue:$('#qwenMultiEditAspectRatio').value || '9:16',description:null},
+    {nodeId:'481',fieldName:'value',fieldValue:'2000',description:null},
+    {nodeId:'482',fieldName:'value',fieldValue:'1',description:null},
+    {nodeId:'478',fieldName:'text',fieldValue:prompt,description:null}
+  );
+
+  return nodes;
+}
+
+async function runQwenMultiEditTask() {
+  if (qwenMultiEditState.running) return;
+
+  const key = apiKey();
+  if (!key) {
+    toast('请先在设置中保存 RunningHub API Key','bad');
+    openSettings();
+    return;
+  }
+
+  const prompt = $('#qwenMultiEditPromptInput').value.trim();
+  if (!prompt) {
+    toast('请输入图片编辑指令','bad');
+    $('#qwenMultiEditPromptInput').focus();
+    return;
+  }
+
+  const selectedFiles = Object.entries(state.files).filter(([slot]) => !!QWEN_MULTI_EDIT_MEDIA[slot]);
+  if (!selectedFiles.length) {
+    toast('请至少上传 1 张参考图','bad');
+    return;
+  }
+
+  qwenMultiEditState.task = null;
+  clearRuntimeTask(APP_KEYS.qwenMultiEdit);
+  qwenMultiEditState.running = true;
+  $('#qwenMultiEditRunBtn').disabled = true;
+  $('.qwen-multi-edit-generate-label').textContent = '准备任务…';
+  setQwenMultiEditDownload();
+
+  try {
+    const uploadValues = {};
+    let uploaded = 0;
+
+    for (const [slot,file] of selectedFiles) {
+      uploaded++;
+      renderQwenMultiEditLoading('UPLOADING');
+      setQwenMultiEditStatus('UPLOADING', uploaded + ' / ' + selectedFiles.length);
+      $('.qwen-multi-edit-generate-label').textContent = '上传参考图 ' + uploaded + '/' + selectedFiles.length;
+      uploadValues[slot] = await uploadFile(file, key);
+    }
+
+    setQwenMultiEditStatus('SUBMITTING','RUNNINGHUB');
+    $('.qwen-multi-edit-generate-label').textContent = '提交任务…';
+
+    const data = await runRHApp(
+      APPS[APP_KEYS.qwenMultiEdit].appId,
+      getQwenMultiEditNodes(prompt, uploadValues)
+    );
+    qwenMultiEditState.task = data;
+
+    upsertHistory(APP_KEYS.qwenMultiEdit, data, {
+      createdAt:Date.now(),
+      aspect:$('#qwenMultiEditAspectRatio').value || '9:16',
+      quality:'2000',
+      duration:'',
+      instance:instanceLabel($('#instanceType').value),
+      prompt:prompt.slice(0,120)
+    });
+
+    toast('Qwen Image 2.1 编辑任务已提交','good');
+
+    if (data.status === 'SUCCESS') {
+      renderQwenMultiEditSuccess(data);
+    } else if (data.status === 'FAILED') {
+      renderQwenMultiEditFailed(data);
+    } else {
+      renderQwenMultiEditLoading(data.status || 'RUNNING', data.taskId);
+      if (data.taskId) {
+        clearInterval(qwenMultiEditState.poll);
+        qwenMultiEditState.poll = setInterval(() => queryQwenMultiEditTask(data.taskId), 3000);
+      }
+    }
+  } catch (error) {
+    renderQwenMultiEditFailed(qwenMultiEditState.task, error?.message || '运行失败');
+    toast(error?.message || '运行失败','bad');
+  } finally {
+    qwenMultiEditState.running = false;
+    $('#qwenMultiEditRunBtn').disabled = false;
+    $('.qwen-multi-edit-generate-label').textContent = '开始生成';
+  }
+}
+
+async function queryQwenMultiEditTask(taskId) {
+  try {
+    const data = await queryRH(taskId);
+    qwenMultiEditState.task = data;
+    const status = data.status;
+
+    upsertHistory(APP_KEYS.qwenMultiEdit, data, {taskId});
+
+    if (status === 'SUCCESS') {
+      clearInterval(qwenMultiEditState.poll);
+      qwenMultiEditState.poll = null;
+      renderQwenMultiEditSuccess(data);
+      toast('Qwen Image 2.1 编辑完成','good');
+    } else if (status === 'FAILED') {
+      clearInterval(qwenMultiEditState.poll);
+      qwenMultiEditState.poll = null;
+      renderQwenMultiEditFailed(data);
+      toast('Qwen Image 2.1 编辑失败','bad');
+    } else {
+      renderQwenMultiEditLoading(status, data.taskId || taskId);
+    }
+  } catch (error) {
+    clearInterval(qwenMultiEditState.poll);
+    qwenMultiEditState.poll = null;
+    markRuntimeTaskFailed(APP_KEYS.qwenMultiEdit, taskId, error?.message || '任务查询失败');
+    renderQwenMultiEditFailed(qwenMultiEditState.task, error?.message || '任务查询失败');
+    toast(error?.message || '任务查询失败','bad');
+  }
+}
+
+
 function setMultiFastStatus(status, meta='') {
   const names = {
     IDLE:'等待生成',
@@ -3303,6 +3580,8 @@ $('#kq12RunBtn').onclick = runKQ12Task;
 $('#kq12DownloadBtn').onclick = () => triggerDownload(kq12State, $('#kq12DownloadBtn'), 'rh-studio-kq12');
 $('#skinUpscaleRunBtn').onclick = runSkinUpscaleTask;
 $('#skinUpscaleDownloadBtn').onclick = () => triggerDownload(skinUpscaleState, $('#skinUpscaleDownloadBtn'), 'rh-studio-skin-upscale');
+$('#qwenMultiEditRunBtn').onclick = runQwenMultiEditTask;
+$('#qwenMultiEditDownloadBtn').onclick = () => triggerDownload(qwenMultiEditState, $('#qwenMultiEditDownloadBtn'), 'rh-studio-qwen-image-2-1-edit');
 $('#multiFastRunBtn').onclick = runMultiFastTask;
 $('#multiFastDownloadBtn').onclick = () => triggerDownload(multiFastState, $('#multiFastDownloadBtn'), 'rh-studio-minimax-h3-multi-fast');
 
@@ -3346,6 +3625,8 @@ $('#clearLocal').onclick = () => {
     LS.kq12Prompt,
     LS.multiFastPrompt,
     LS.multiFastAspect,
+    LS.qwenMultiEditPrompt,
+    LS.qwenMultiEditAspect,
     LS.appFilter,
     LS.inst,
     LS.runtimeTasks
@@ -3359,6 +3640,7 @@ $('#clearLocal').onclick = () => {
   renderKQ12Idle();
   renderSkinUpscaleIdle();
   clearSkinUpscaleFile();
+  renderQwenMultiEditIdle();
   renderMultiFastIdle();
   renderAppFilter('all', false, false);
   setActiveApp(APP_KEYS.video);
@@ -3369,6 +3651,7 @@ loadConfig();
 updateKeyUI();
 Object.keys(MEDIA).forEach(renderFileSlot);
 Object.keys(MULTI_FAST_MEDIA).forEach(renderFileSlot);
+Object.keys(QWEN_MULTI_EDIT_MEDIA).forEach(renderFileSlot);
 ensureMaterialLibrary().catch(() => updateMaterialLibraryBadges());
 renderVideoIdle();
 renderImageIdle();
@@ -3376,6 +3659,7 @@ renderWhiteMarbleIdle();
 renderKQ12Idle();
 renderSkinUpscaleIdle();
 renderSkinUpscaleInput();
+renderQwenMultiEditIdle();
 renderMultiFastIdle();
 syncAutoGenerateAvailability();
 updateAutoBatchProgress();
