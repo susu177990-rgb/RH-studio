@@ -515,6 +515,34 @@ Vercel 配置继续保留作为备用兼容，但不再作为默认生产部署�
 - 与 `minimax-h3` 使用完全独立的媒体 slot，禁止跨应用上传节点串用。
 
 
+### 14.9 Qwen Image 2.1 多图编辑
+
+- `appKey`: `qwen-image-2-1-multi-edit`
+- 类型：多图编辑 / 图片生成
+- RunningHub AI App ID：`2101915284503654402`
+- 输入图片节点：
+  - 参考图 1：Node 420 / `image`
+  - 参考图 2：Node 432 / `image`
+  - 参考图 3：Node 433 / `image`
+  - 参考图 4：Node 436 / `image`
+  - 参考图 5：Node 435 / `image`
+  - 参考图 6：Node 434 / `image`
+- 主输入：
+  - Prompt：Node 478 / `text`
+- 已确认控制：
+  - 画幅：Node 479 / `aspect_ratio`
+  - API 提供的可选值：`original`、`custom`、`1:1`、`3:2`、`4:3`、`16:9`、`2:3`、`3:4`、`9:16`
+- 按用户提供的 API 示例固定提交：
+  - Node 481 / `value` = `2000`
+  - Node 482 / `value` = `1`
+- Node 481 的业务单位未由接口资料明确，不在 UI 中擅自解释，只显示原始值 `2000`。
+- 当前工作区支持 1～6 张参考图；未使用的图片槽位提交 `None`。
+- 输出：图片。
+- API Key 与运行实例统一使用全局设置。
+- 本应用任务状态、Task ID 与结果接入统一 runtime task 恢复与生成记录。
+- 本应用节点与其他 AI App 完全隔离，不复用同号节点含义。
+
+
 ## 16. 统一媒体预览组件
 - 所有图片与视频应用统一使用 `.image-preview-shell > .image-preview-stage` 作为结果预览容器，禁止为单个应用创建独立的结果预览窗口尺寸规则。
 - 图片与视频预览统一使用共享 design tokens：
