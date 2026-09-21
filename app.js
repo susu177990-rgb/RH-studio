@@ -91,6 +91,8 @@ const LS = {
   multiFastAspect: 'rhstudio.multiFast.aspect',
   qwenMultiEditPrompt: 'rhstudio.qwenImage21MultiEdit.prompt',
   qwenMultiEditAspect: 'rhstudio.qwenImage21MultiEdit.aspect',
+  qwenMultiEditQuality: 'rhstudio.qwenImage21MultiEdit.quality',
+  qwenMultiEditCount: 'rhstudio.qwenImage21MultiEdit.count',
   appFilter: 'rhstudio.appFilter',
   inst: 'rhstudio.instanceType',
   history: 'rhstudio.generationHistory',
@@ -400,6 +402,8 @@ function persistKQ12Config() {
 function persistQwenMultiEditConfig() {
   localStorage.setItem(LS.qwenMultiEditPrompt, $('#qwenMultiEditPromptInput').value);
   localStorage.setItem(LS.qwenMultiEditAspect, $('#qwenMultiEditAspectRatio').value);
+  localStorage.setItem(LS.qwenMultiEditQuality, $('#qwenMultiEditQuality').value);
+  localStorage.setItem(LS.qwenMultiEditCount, $('#qwenMultiEditCount').value);
 }
 
 function persistMultiFastConfig() {
@@ -434,6 +438,8 @@ function loadConfig() {
   $('#kq12PromptInput').value = localStorage.getItem(LS.kq12Prompt) || '';
   $('#qwenMultiEditPromptInput').value = localStorage.getItem(LS.qwenMultiEditPrompt) || '';
   $('#qwenMultiEditAspectRatio').value = localStorage.getItem(LS.qwenMultiEditAspect) || '9:16';
+  $('#qwenMultiEditQuality').value = localStorage.getItem(LS.qwenMultiEditQuality) || '2000';
+  $('#qwenMultiEditCount').value = localStorage.getItem(LS.qwenMultiEditCount) || '1';
   $('#multiFastPromptInput').value = localStorage.getItem(LS.multiFastPrompt) || '';
   $('#multiFastAspectRatio').value = localStorage.getItem(LS.multiFastAspect) || '9:16 (Portrait Widescreen)';
   state.appFilter = localStorage.getItem(LS.appFilter) || 'all';
@@ -531,7 +537,7 @@ $('#kq12PromptInput').addEventListener('input', () => {
 });
 $('#kq12PromptInput').addEventListener('change', persistKQ12Config);
 
-['qwenMultiEditPromptInput','qwenMultiEditAspectRatio'].forEach(id => {
+['qwenMultiEditPromptInput','qwenMultiEditAspectRatio','qwenMultiEditQuality','qwenMultiEditCount'].forEach(id => {
   const el = $('#' + id);
   el.addEventListener('input', () => {
     persistQwenMultiEditConfig();
@@ -2747,8 +2753,8 @@ function getQwenMultiEditNodes(prompt, uploadValues) {
 
   nodes.push(
     {nodeId:'479',fieldName:'aspect_ratio',fieldValue:$('#qwenMultiEditAspectRatio').value || '9:16',description:null},
-    {nodeId:'481',fieldName:'value',fieldValue:'2000',description:null},
-    {nodeId:'482',fieldName:'value',fieldValue:'1',description:null},
+    {nodeId:'481',fieldName:'value',fieldValue:$('#qwenMultiEditQuality').value || '2000',description:null},
+    {nodeId:'482',fieldName:'value',fieldValue:$('#qwenMultiEditCount').value || '1',description:null},
     {nodeId:'478',fieldName:'text',fieldValue:prompt,description:null}
   );
 
@@ -2809,7 +2815,7 @@ async function runQwenMultiEditTask() {
     upsertHistory(APP_KEYS.qwenMultiEdit, data, {
       createdAt:Date.now(),
       aspect:$('#qwenMultiEditAspectRatio').value || '9:16',
-      quality:'2000',
+      quality:({'1000':'1K','2000':'2K','4000':'4K'}[$('#qwenMultiEditQuality').value] || $('#qwenMultiEditQuality').value) + ' · ' + ($('#qwenMultiEditCount').value || '1') + '张',
       duration:'',
       instance:instanceLabel($('#instanceType').value),
       prompt:prompt.slice(0,120)
@@ -3627,6 +3633,8 @@ $('#clearLocal').onclick = () => {
     LS.multiFastAspect,
     LS.qwenMultiEditPrompt,
     LS.qwenMultiEditAspect,
+    LS.qwenMultiEditQuality,
+    LS.qwenMultiEditCount,
     LS.appFilter,
     LS.inst,
     LS.runtimeTasks
