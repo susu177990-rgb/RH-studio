@@ -1007,10 +1007,24 @@
               </select>
             </label>
 
-            <div class="image-fixed-field">
-              <span>固定参数</span>
-              <strong>2000 · 1 张</strong>
-            </div>
+            <label class="operation-field">
+              <span>清晰度</span>
+              <select id="qwenMultiEditQuality">
+                <option value="1000">1K</option>
+                <option value="2000" selected>2K</option>
+                <option value="4000">4K</option>
+              </select>
+            </label>
+
+            <label class="operation-field">
+              <span>生成张数</span>
+              <select id="qwenMultiEditCount">
+                <option value="1" selected>1 张</option>
+                <option value="2">2 张</option>
+                <option value="3">3 张</option>
+                <option value="4">4 张</option>
+              </select>
+            </label>
           </div>
 
           <div class="operation-foot">
@@ -1365,7 +1379,7 @@
 </div>
 
 <div id="toast" class="toast"></div>
-<script src="./app.js?v=qwen-image-2-1-multi-edit-v1"></script>
+<script src="./app.js?v=qwen-image-2-1-controls-v2"></script>
 
 <script src="./persona-random.js?v=persona-image-v2"></script>
 
