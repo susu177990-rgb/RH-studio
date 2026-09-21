@@ -245,10 +245,10 @@
       <div class="section-label">应用</div>
       <div class="app-filter" role="group" aria-label="应用类型筛选">
         <button class="app-filter-btn active" data-app-filter="all" type="button" aria-pressed="true">
-          <span>全部</span><b id="appFilterCountAll">6</b>
+          <span>全部</span><b id="appFilterCountAll">7</b>
         </button>
         <button class="app-filter-btn" data-app-filter="image" type="button" aria-pressed="false">
-          <span>图片</span><b id="appFilterCountImage">4</b>
+          <span>图片</span><b id="appFilterCountImage">5</b>
         </button>
         <button class="app-filter-btn" data-app-filter="video" type="button" aria-pressed="false">
           <span>视频</span><b id="appFilterCountVideo">2</b>
@@ -299,6 +299,15 @@
           <div class="app-copy">
             <strong>去AI感真实皮肤高清放大</strong>
             <span>Image Enhance</span>
+          </div>
+          <i class="active-dot"></i>
+        </button>
+
+        <button class="app-item" data-app="qwen-image-2-1-multi-edit" type="button">
+          <div class="app-icon">Q2</div>
+          <div class="app-copy">
+            <strong>Qwen Image 2.1 多图编辑</strong>
+            <span>Multi Image Edit</span>
           </div>
           <i class="active-dot"></i>
         </button>
@@ -879,6 +888,141 @@
     </div>
 
 
+    <div id="workspaceQwenMultiEdit" class="workspace app-workspace hidden">
+      <div class="workspace-top">
+        <section class="asset-panel glass">
+          <div class="panel-head">
+            <div>
+              <span>REFERENCE INPUTS</span>
+              <h2>多图参考</h2>
+            </div>
+            <b>6 INPUTS</b>
+          </div>
+
+          <div class="image-grid">
+            <button class="upload-slot image-slot" data-slot="qwenImg420" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>01</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 1</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="qwenImg432" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>02</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 2</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="qwenImg433" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>03</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 3</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="qwenImg436" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>04</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 4</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="qwenImg435" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>05</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 5</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+            <button class="upload-slot image-slot" data-slot="qwenImg434" type="button">
+              <input type="file" accept="image/*" hidden>
+              <div class="media-preview"><span>06</span><i>＋</i></div>
+              <div class="media-caption"><strong>参考图 6</strong><small>IMAGE</small></div>
+              <em class="slot-clear hidden">×</em>
+            </button>
+          </div>
+        </section>
+
+        <section class="output-panel glass">
+          <div class="panel-head output-head">
+            <div>
+              <span>IMAGE OUTPUT</span>
+              <h2>编辑结果预览</h2>
+            </div>
+            <div class="output-head-actions">
+              <div class="status-pill">
+                <i id="qwenMultiEditStatusDot" class="status-dot"></i>
+                <div><strong id="qwenMultiEditStatusText">等待生成</strong><span id="qwenMultiEditTaskMeta">READY</span></div>
+              </div>
+              <button id="qwenMultiEditDownloadBtn" class="download-btn" type="button" disabled>
+                <span>下载</span><b>↓</b>
+              </button>
+            </div>
+          </div>
+
+          <div class="image-preview-shell">
+            <div id="qwenMultiEditResultArea" class="image-preview-stage">
+              <div class="empty-state">
+                <div class="empty-mark">＋</div>
+                <strong>准备编辑图片</strong>
+                <span>上传参考图并输入编辑指令，结果会显示在这里。</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="workspace-bottom">
+        <section class="prompt-panel glass">
+          <div class="panel-head compact-head">
+            <div>
+              <span>EDIT PROMPT</span>
+              <h2>编辑指令</h2>
+            </div>
+            <div class="prompt-head-actions">
+              <b id="qwenMultiEditPromptCount">0</b>
+            </div>
+          </div>
+          <textarea id="qwenMultiEditPromptInput" placeholder="例如：图1的人物换上图2的衣服；保留人物身份、姿态和原有场景关系……"></textarea>
+        </section>
+
+        <section class="operation-panel glass">
+          <div class="panel-head compact-head operation-head">
+            <div>
+              <span>GENERATION CONTROL</span>
+              <h2>操作区</h2>
+            </div>
+            <div class="workflow-state compact-state"><i></i><span>Qwen Image 2.1</span></div>
+          </div>
+
+          <div class="operation-grid">
+            <label class="operation-field">
+              <span>比例</span>
+              <select id="qwenMultiEditAspectRatio">
+                <option value="original">原图比例</option>
+                <option value="custom">自定义</option>
+                <option value="1:1">1:1</option>
+                <option value="3:2">3:2</option>
+                <option value="4:3">4:3</option>
+                <option value="16:9">16:9</option>
+                <option value="2:3">2:3</option>
+                <option value="3:4">3:4</option>
+                <option value="9:16" selected>9:16</option>
+              </select>
+            </label>
+
+            <div class="image-fixed-field">
+              <span>固定参数</span>
+              <strong>2000 · 1 张</strong>
+            </div>
+          </div>
+
+          <div class="operation-foot">
+            <button id="qwenMultiEditRunBtn" class="generate-btn" type="button">
+              <span class="qwen-multi-edit-generate-label">开始生成</span><b>↗</b>
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+
     <div id="workspaceMultiFast" class="workspace app-workspace hidden">
       <div class="workspace-top">
         <section class="asset-panel glass">
@@ -1221,7 +1365,7 @@
 </div>
 
 <div id="toast" class="toast"></div>
-<script src="./app.js?v=persona-linked-v2"></script>
+<script src="./app.js?v=qwen-image-2-1-multi-edit-v1"></script>
 
 <script src="./persona-random.js?v=persona-image-v2"></script>
 
