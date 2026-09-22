@@ -1284,6 +1284,126 @@ $$('.upload-slot').forEach(el => {
   });
 });
 
+
+function mediaKindFromFile(file) {
+  const type = String(file?.type || '').toLowerCase();
+  if (type.startsWith('image/')) return 'image';
+  if (type.startsWith('video/')) return 'video';
+  if (type.startsWith('audio/')) return 'audio';
+
+  const name = String(file?.name || '').toLowerCase();
+  if (/\.(png|jpe?g|webp|gif|avif|bmp|tiff?)$/.test(name)) return 'image';
+  if (/\.(mp4|webm|mov|m4v|mkv|avi)$/.test(name)) return 'video';
+  if (/\.(mp3|wav|m4a|aac|ogg|flac|webm)$/.test(name)) return 'audio';
+  return '';
+}
+
+function clipboardFiles(event) {
+  const transfer = event?.clipboardData;
+  if (!transfer) return [];
+
+  const directFiles = [...(transfer.files || [])].filter(Boolean);
+  if (directFiles.length) return directFiles;
+
+  return [...(transfer.items || [])]
+    .filter(item => item.kind === 'file')
+    .map(item => item.getAsFile())
+    .filter(Boolean);
+}
+
+function activeWorkspaceUploadSlots() {
+  const workspace = $('.app-workspace:not(.hidden)');
+  if (!workspace) return [];
+
+  return [...workspace.querySelectorAll('.upload-slot[data-slot]')]
+    .map(el => {
+      const slot = el.dataset.slot;
+      const config = MEDIA[slot] || MULTI_FAST_MEDIA[slot] || QWEN_MULTI_EDIT_MEDIA[slot];
+      return config ? {el, slot, config} : null;
+    })
+    .filter(Boolean);
+}
+
+function pasteFilesIntoActiveWorkspace(files) {
+  const normalized = files.filter(file => file && file.size > 0);
+  if (!normalized.length) return {filled:0, skipped:0, oversized:0};
+
+  let filled = 0;
+  let skipped = 0;
+  let oversized = 0;
+
+  if (state.activeApp === APP_KEYS.skinUpscale) {
+    for (const file of normalized) {
+      if (mediaKindFromFile(file) !== 'image' || skinUpscaleState.inputFile) {
+        skipped++;
+        continue;
+      }
+      if (file.size > MAX_RH_UPLOAD_BYTES) {
+        oversized++;
+        continue;
+      }
+      setSkinUpscaleFile(file);
+      filled++;
+    }
+    return {filled, skipped, oversized};
+  }
+
+  const slots = activeWorkspaceUploadSlots();
+
+  for (const file of normalized) {
+    const kind = mediaKindFromFile(file);
+    if (!kind) {
+      skipped++;
+      continue;
+    }
+
+    if (file.size > MAX_RH_UPLOAD_BYTES) {
+      oversized++;
+      continue;
+    }
+
+    const target = slots.find(item =>
+      item.config.kind === kind &&
+      !state.files[item.slot]
+    );
+
+    if (!target) {
+      skipped++;
+      continue;
+    }
+
+    setFile(target.slot, file);
+    filled++;
+  }
+
+  return {filled, skipped, oversized};
+}
+
+window.addEventListener('paste', event => {
+  const files = clipboardFiles(event);
+  if (!files.length) return;
+
+  // Drawers contain their own editing controls; avoid silently filling the
+  // hidden workspace while a settings drawer is open.
+  if ($('.drawer-overlay:not(.hidden)')) return;
+
+  event.preventDefault();
+
+  const result = pasteFilesIntoActiveWorkspace(files);
+  const parts = [];
+
+  if (result.filled) parts.push('已按顺序填入 ' + result.filled + ' 个文件');
+  if (result.oversized) parts.push(result.oversized + ' 个文件超过 30MB');
+  if (result.skipped) parts.push(result.skipped + ' 个文件没有匹配的空栏');
+
+  if (result.filled) {
+    toast(parts.join(' · '), 'good');
+  } else {
+    toast(parts.join(' · ') || '当前应用没有可用的空素材栏', 'bad');
+  }
+});
+
+
 function clearSkinUpscaleFile() {
   if (skinUpscaleState.inputObjectUrl) {
     URL.revokeObjectURL(skinUpscaleState.inputObjectUrl);
